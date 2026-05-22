@@ -1,7 +1,7 @@
-package com.ifba.horizontemeu.service;
+package br.com.ifba.horizontemeu.usuario.service;
 
-import com.ifba.horizontemeu.entity.Usuario;
-import com.ifba.horizontemeu.repository.UsuarioRepository;
+import br.com.ifba.horizontemeu.usuario.entity.Usuario;
+import br.com.ifba.horizontemeu.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,19 +18,22 @@ public class UsuarioService implements UsuarioIService {
 
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
-    /**Busca todos os usuarios cadastrados*/
+    /** Busca todos os usuários cadastrados */
+    @Override
     public List<Usuario> findAll() {
         log.info("Buscando todos os usuários...");
         return usuarioRepository.findAll();
     }
 
-    /**Busca o usuário por id*/
+    /** Busca o usuário por id */
+    @Override
     public Optional<Usuario> findById(Long id) {
         log.info("Buscando usuário com id: {}", id);
         return usuarioRepository.findById(id);
     }
 
-    /** Busca usuários pelo nome*/
+    /** Busca usuários pelo nome */
+    @Override
     public List<Usuario> findByNome(String nome) {
         return usuarioRepository.findByNomeContainingIgnoreCase(nome);
     }
@@ -43,6 +46,7 @@ public class UsuarioService implements UsuarioIService {
      *  - Perfil padrão é "usuario"
      *  - Data de cadastro é preenchida automaticamente
      */
+    @Override
     public Usuario save(Usuario usuario) {
         if (usuario == null) {
             throw new RuntimeException("Dados do usuário não preenchidos.");
@@ -67,6 +71,7 @@ public class UsuarioService implements UsuarioIService {
      * Atualiza os dados de um usuário existente.
      * Atualiza apenas nome e foto de perfil.
      */
+    @Override
     public Usuario update(Long id, Usuario usuarioAtualizado) {
         Usuario existente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado com id: " + id));
@@ -78,7 +83,8 @@ public class UsuarioService implements UsuarioIService {
         return usuarioRepository.save(existente);
     }
 
-    /** Remove um usuário pelo ID*/
+    /** Remove um usuário pelo ID */
+    @Override
     public void delete(Long id) {
         if (!usuarioRepository.existsById(id)) {
             throw new RuntimeException("Usuário não encontrado com id: " + id);

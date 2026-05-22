@@ -1,4 +1,4 @@
-package com.ifba.horizontemeu;
+package br.com.ifba.horizontemeu;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
