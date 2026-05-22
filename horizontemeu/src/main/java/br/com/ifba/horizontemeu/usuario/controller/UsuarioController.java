@@ -1,5 +1,8 @@
 package br.com.ifba.horizontemeu.usuario.controller;
 
+import br.com.ifba.horizontemeu.infrastructure.mapper.ObjectMapperUtil;
+import br.com.ifba.horizontemeu.usuario.dto.UsuarioGetResponseDto;
+import br.com.ifba.horizontemeu.usuario.dto.UsuarioPostRequestDto;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import br.com.ifba.horizontemeu.usuario.service.UsuarioIService;
 import lombok.RequiredArgsConstructor;
@@ -14,26 +17,36 @@ import org.springframework.web.bind.annotation.*;
 public class UsuarioController implements UsuarioIController {
 
     private final UsuarioIService usuarioIService;
+    // coloca o ObjectMapperUtil para converter entidades em DTOs e vice-versa
+    private final ObjectMapperUtil objectMapperUtil;
 
     /**
      * Lista todos os usuários.
      * GET /usuarios/findall
+     * Usa mapAll para converter a lista de Usuario em lista de UsuarioGetResponseDto
+     * garantindo que a senha não seja exposta na resposta
      */
     @Override
     @GetMapping(path = "/findall", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findAll() {
-        return ResponseEntity.ok(usuarioIService.findAll());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(objectMapperUtil.mapAll(
+                        this.usuarioIService.findAll(),
+                        UsuarioGetResponseDto.class));
     }
 
     /**
      * Busca usuário por ID.
      * GET /usuarios/findbyid/{id}
+     * Converte o Usuario encontrado para DTO antes de retornar
+     * se não encontrar retorna 404
      */
     @Override
     @GetMapping(path = "/findbyid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findById(@PathVariable Long id) {
         return usuarioIService.findById(id)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(u -> ResponseEntity.ok(
+                        objectMapperUtil.map(u, UsuarioGetResponseDto.class)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body("Usuário não encontrado com id: " + id));
     }
@@ -45,52 +58,43 @@ public class UsuarioController implements UsuarioIController {
     @Override
     @GetMapping(path = "/findbynome", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByNome(@RequestParam String nome) {
-        return ResponseEntity.ok(usuarioIService.findByNome(nome));
+        return ResponseEntity.ok(objectMapperUtil.mapAll(
+                usuarioIService.findByNome(nome),
+                UsuarioGetResponseDto.class));
     }
 
     /**
      * Cadastra um novo usuário.
      * POST /usuarios/save
-     * Body:
-     * {
-     *   "nome": "Ana Silva",
-     *   "email": "ana@email.com",
-     *   "senha": "123456"
-     * }
      */
     @Override
     @PostMapping(path = "/save",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> save(@RequestBody Usuario usuario) {
-        try {
-            Usuario salvo = usuarioIService.save(usuario);
-            return ResponseEntity.status(HttpStatus.CREATED).body(salvo);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+    public ResponseEntity<?> save(@RequestBody UsuarioPostRequestDto usuarioPostRequestDto) {
+        // Converte o DTO de entrada para a entidade Usuario
+        Usuario salvo = usuarioIService.save(
+                objectMapperUtil.map(usuarioPostRequestDto, Usuario.class));
+        // Converte o Usuario salvo para DTO de saída e retorna 201
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(objectMapperUtil.map(salvo, UsuarioGetResponseDto.class));
     }
 
     /**
      * Atualiza nome e foto de perfil.
      * PUT /usuarios/update/{id}
-     * Body:
-     * {
-     *   "nome": "Ana Silva Santos",
-     *   "fotoPerfil": "https://exemplo.com/foto.jpg"
-     * }
      */
     @Override
     @PutMapping(path = "/update/{id}",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Usuario usuario) {
-        try {
-            Usuario atualizado = usuarioIService.update(id, usuario);
-            return ResponseEntity.ok(atualizado);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody UsuarioPostRequestDto usuarioPostRequestDto) {
+        // Converte o DTO de entrada para entidade e atualiza
+        Usuario atualizado = usuarioIService.update(id,
+                objectMapperUtil.map(usuarioPostRequestDto, Usuario.class));
+        // Retorna o usuário atualizado como DTO de saída
+        return ResponseEntity.ok(
+                objectMapperUtil.map(atualizado, UsuarioGetResponseDto.class));
     }
 
     /**
@@ -100,11 +104,8 @@ public class UsuarioController implements UsuarioIController {
     @Override
     @DeleteMapping(path = "/delete/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
-        try {
-            usuarioIService.delete(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        // O ApiExceptionHandler cuida do erro caso o usuário não exista
+        usuarioIService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }
