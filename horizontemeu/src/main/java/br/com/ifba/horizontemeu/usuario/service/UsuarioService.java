@@ -3,6 +3,7 @@ package br.com.ifba.horizontemeu.usuario.service;
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import br.com.ifba.horizontemeu.usuario.repository.UsuarioRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,9 @@ public class UsuarioService implements UsuarioIService {
         return usuarioRepository.findByNomeContainingIgnoreCase(nome);
     }
 
+    // Garante que toda a operação seja executada como uma única transação.
+    // Se qualquer etapa falhar, o banco de dados é revertido (rollback) automaticamente.
+    @Transactional
     @Override
     public Usuario save(Usuario usuario) {
         if (usuario == null) {
@@ -62,6 +66,7 @@ public class UsuarioService implements UsuarioIService {
         return usuarioRepository.save(usuario);
     }
 
+    @Transactional
     @Override
     public Usuario update(Long id, Usuario usuarioAtualizado) {
         // Lança BusinessException se o usuário não for encontrado
@@ -75,6 +80,8 @@ public class UsuarioService implements UsuarioIService {
         return usuarioRepository.save(existente);
     }
 
+
+    @Transactional
     @Override
     public void delete(Long id) {
         if (!usuarioRepository.existsById(id)) {

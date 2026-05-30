@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(path = "/usuarios")
@@ -71,7 +72,7 @@ public class UsuarioController implements UsuarioIController {
     @PostMapping(path = "/save",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> save(@RequestBody UsuarioPostRequestDto usuarioPostRequestDto) {
+    public ResponseEntity<?> save(@RequestBody @Valid UsuarioPostRequestDto usuarioPostRequestDto) {
         // Converte o DTO de entrada para a entidade Usuario
         Usuario salvo = usuarioIService.save(
                 objectMapperUtil.map(usuarioPostRequestDto, Usuario.class));
@@ -88,7 +89,7 @@ public class UsuarioController implements UsuarioIController {
     @PutMapping(path = "/update/{id}",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody UsuarioPostRequestDto usuarioPostRequestDto) {
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody @Valid UsuarioPostRequestDto usuarioPostRequestDto) {
         // Converte o DTO de entrada para entidade e atualiza
         Usuario atualizado = usuarioIService.update(id,
                 objectMapperUtil.map(usuarioPostRequestDto, Usuario.class));
