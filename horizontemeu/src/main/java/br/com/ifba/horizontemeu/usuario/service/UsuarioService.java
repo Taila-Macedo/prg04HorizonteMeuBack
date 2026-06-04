@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -20,9 +22,9 @@ public class UsuarioService implements UsuarioIService {
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
     @Override
-    public List<Usuario> findAll() {
+    public Page<Usuario> findAll(Pageable pageable) {
         log.info("Buscando todos os usuários...");
-        return usuarioRepository.findAll();
+        return usuarioRepository.findAll(pageable);
     }
 
     @Override
