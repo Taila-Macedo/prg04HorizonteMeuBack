@@ -1,6 +1,7 @@
 package br.com.ifba.horizontemeu.usuario.service;
 
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
+import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import br.com.ifba.horizontemeu.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
@@ -60,8 +61,8 @@ public class UsuarioService implements UsuarioIService {
         usuario.setDataCadastro(LocalDate.now());
 
         // Define perfil padrão caso não seja informado
-        if (usuario.getPerfil() == null || usuario.getPerfil().isBlank()) {
-            usuario.setPerfil("usuario");
+        if (usuario.getPerfil() == null) {
+            usuario.setPerfil(Perfil.USUARIO);
         }
 
         log.info("Salvando novo usuário: {}", usuario.getEmail());

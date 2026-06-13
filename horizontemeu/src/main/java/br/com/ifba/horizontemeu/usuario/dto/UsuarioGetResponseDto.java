@@ -1,5 +1,6 @@
 package br.com.ifba.horizontemeu.usuario.dto;
 
+import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,7 @@ public class UsuarioGetResponseDto {
     private String email;
 
     @JsonProperty(value = "perfil")
-    private String perfil;
+    private Perfil perfil;
 
     @JsonProperty(value = "fotoPerfil")
     private String fotoPerfil;

@@ -1,9 +1,11 @@
 package br.com.ifba.horizontemeu.usuario.entity;
 
 import br.com.ifba.horizontemeu.infrastructure.entity.PersistenceEntity;
+import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Entidade Usuario — representa qualquer pessoa cadastrada no Horizonte.
@@ -11,7 +13,8 @@ import java.time.LocalDate;
  */
 @Entity
 @Table(name = "usuarios")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Usuario extends PersistenceEntity {
@@ -30,8 +33,16 @@ public class Usuario extends PersistenceEntity {
     private String fotoPerfil;
 
     // Tipo de acesso ("usuario" ou "adm")
-    private String perfil;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Perfil perfil;
 
     // Data de cadastro
     private LocalDate dataCadastro;
+
+    //Token temporário para recuperação de senha (null quando inativo)
+    private String tokenResetSenha;
+    
+    //Data/hora de expiração do token de reset (expira em 1 hora)
+    private LocalDateTime tokenExpiracao;
 }
