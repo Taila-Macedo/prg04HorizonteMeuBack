@@ -42,7 +42,7 @@ public class Usuario extends PersistenceEntity {
 
     //Token temporário para recuperação de senha (null quando inativo)
     private String tokenResetSenha;
-    
+
     //Data/hora de expiração do token de reset (expira em 1 hora)
     private LocalDateTime tokenExpiracao;
 }

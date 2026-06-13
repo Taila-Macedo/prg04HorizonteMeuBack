@@ -1,6 +1,7 @@
 package br.com.ifba.horizontemeu.usuario.repository;
 
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
+import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -16,5 +17,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     List<Usuario> findByNomeContainingIgnoreCase(String nome);
 
     // Busca por perfil
-    List<Usuario> findByPerfil(String perfil);
+    List<Usuario> findByPerfil(Perfil perfil);
 }
