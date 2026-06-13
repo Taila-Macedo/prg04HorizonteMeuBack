@@ -11,6 +11,12 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+/**
+ * Entidade que representa uma foto enviada por um usuário
+ * para a galeria de um ponto turístico.
+ * Passa por aprovação do administrador antes de aparecer na galeria.
+ * Independente do campo foto_url em Comentario — são dois fluxos separados.
+ */
 @Entity
 @Table (name = "fotos")
 @Getter
@@ -26,7 +32,7 @@ public class Foto extends PersistenceEntity {
     private LocalDate dataUpload;
 
     @Column(nullable = false)
-    private Boolean aprovado;
+    private Boolean aprovado = false;
 
     @ManyToOne
     @JoinColumn(name = "id_usuario", nullable = false)

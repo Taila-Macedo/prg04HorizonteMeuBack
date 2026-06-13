@@ -32,7 +32,6 @@ public class UsuarioPostRequestDto {
 
     @JsonProperty(value = "perfil")
     @NotNull(message = "O perfil é obrigatório!")
-    @NotBlank(message = "O perfil não pode ser vazio!")
     private Perfil perfil;
 
     @JsonProperty(value = "fotoPerfil")
