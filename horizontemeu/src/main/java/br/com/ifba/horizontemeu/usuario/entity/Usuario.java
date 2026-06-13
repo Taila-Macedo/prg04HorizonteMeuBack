@@ -1,5 +1,6 @@
 package br.com.ifba.horizontemeu.usuario.entity;
 
+import br.com.ifba.horizontemeu.infrastructure.entity.PersistenceEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -13,11 +14,7 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Usuario {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
+public class Usuario extends PersistenceEntity {
 
     // Nome completo do usuário
     private String nome;
