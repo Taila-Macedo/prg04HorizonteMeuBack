@@ -11,6 +11,12 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+/**
+ * Entidade que representa um comentário publicado por um usuário
+ * em um ponto turístico. Inclui nota de 1 a 5 estrelas, contador
+ * de curtidas e um campo opcional foto_url para anexar uma imagem
+ * diretamente no comentário (independente da classe Foto).
+ */
 @Entity
 @Table (name = "comentarios")
 @Getter
