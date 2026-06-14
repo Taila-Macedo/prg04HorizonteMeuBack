@@ -1,7 +1,5 @@
 package br.com.ifba.horizontemeu.infrastructure.mapper;
 
-import br.com.ifba.horizontemeu.favorito.dto.FavoritoGetResponseDto;
-import br.com.ifba.horizontemeu.favorito.entity.Favorito;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.stereotype.Component;
@@ -14,28 +12,25 @@ public class ObjectMapperUtil {
 
     private static final ModelMapper MODEL_MAPPER;
 
+    // Bloco estático — inicializa e configura o ModelMapper uma única vez!
     static {
         MODEL_MAPPER = new ModelMapper();
 
+        // As configurações vieram para cá. Elas rodam apenas 1 vez quando a API liga.
         MODEL_MAPPER.getConfiguration()
                 .setAmbiguityIgnored(true)
                 .setMatchingStrategy(MatchingStrategies.STRICT)
                 .setFieldMatchingEnabled(true)
+                // Permite acessar campos privados das classes
                 .setFieldAccessLevel(Configuration.AccessLevel.PRIVATE);
-
-        // Mapeamento customizado: Favorito -> FavoritoGetResponseDto
-        // Necessário porque idPontoTuristico (Long) no DTO não casa
-        // diretamente com pontoTuristico (objeto) na entidade.
-        MODEL_MAPPER.typeMap(Favorito.class, FavoritoGetResponseDto.class)
-                .addMapping(src -> src.getPontoTuristico().getId(),
-                        FavoritoGetResponseDto::setIdPontoTuristico);
     }
 
+    // Converte um único objeto de Input para Output
     public <Input, Output> Output map(final Input object, final Class<Output> clazz) {
-        Output c = MODEL_MAPPER.map(object, clazz);
-        return c;
+        return MODEL_MAPPER.map(object, clazz);
     }
 
+    // Converte uma lista inteira de Input para uma lista de Output
     public <Input, Output> List<Output> mapAll(final List<Input> list, final Class<Output> clazz) {
         return list.stream()
                 .map(obj -> map(obj, clazz))

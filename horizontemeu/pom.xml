@@ -6,8 +6,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.14</version>
-		<relativePath/> <!-- lookup parent from repository -->
-	</parent>
+		<relativePath/> </parent>
 	<groupId>com.ifba</groupId>
 	<artifactId>horizontemeu</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
@@ -28,6 +27,9 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+
+		<org.mapstruct.version>1.5.5.Final</org.mapstruct.version>
+		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -54,20 +56,23 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Model Mapper -->
 		<dependency>
 			<groupId>org.modelmapper</groupId>
 			<artifactId>modelmapper</artifactId>
 			<version>3.2.0</version>
 		</dependency>
 
-		<!-- Spring Validation -->
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>${org.mapstruct.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
-		<!-- Web Flux -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
@@ -102,8 +107,18 @@
 						<configuration>
 							<annotationProcessorPaths>
 								<path>
+									<groupId>org.mapstruct</groupId>
+									<artifactId>mapstruct-processor</artifactId>
+									<version>${org.mapstruct.version}</version>
+								</path>
+								<path>
 									<groupId>org.projectlombok</groupId>
 									<artifactId>lombok</artifactId>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok-mapstruct-binding</artifactId>
+									<version>${lombok-mapstruct-binding.version}</version>
 								</path>
 							</annotationProcessorPaths>
 						</configuration>
@@ -117,8 +132,18 @@
 						<configuration>
 							<annotationProcessorPaths>
 								<path>
+									<groupId>org.mapstruct</groupId>
+									<artifactId>mapstruct-processor</artifactId>
+									<version>${org.mapstruct.version}</version>
+								</path>
+								<path>
 									<groupId>org.projectlombok</groupId>
 									<artifactId>lombok</artifactId>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok-mapstruct-binding</artifactId>
+									<version>${lombok-mapstruct-binding.version}</version>
 								</path>
 							</annotationProcessorPaths>
 						</configuration>
