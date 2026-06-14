@@ -7,6 +7,12 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 
+/**
+ * Entidade que representa um ponto turístico salvo
+ * por um usuário na sua lista de favoritos.
+ * O par (usuario, pontoTuristico) deve ser único —
+ * um usuário não pode favoritar o mesmo ponto duas vezes.
+ */
 @Entity
 @Table(name = "favoritos")
 @Getter
