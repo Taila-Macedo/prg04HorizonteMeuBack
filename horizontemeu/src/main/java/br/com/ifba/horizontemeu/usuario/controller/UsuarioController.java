@@ -3,16 +3,17 @@ package br.com.ifba.horizontemeu.usuario.controller;
 import br.com.ifba.horizontemeu.infrastructure.mapper.ObjectMapperUtil;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioGetResponseDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioPostRequestDto;
+import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import br.com.ifba.horizontemeu.usuario.service.UsuarioIService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping(path = "/usuarios")
@@ -20,31 +21,29 @@ import org.springframework.data.domain.Pageable;
 public class UsuarioController implements UsuarioIController {
 
     private final UsuarioIService usuarioIService;
-    // coloca o ObjectMapperUtil para converter entidades em DTOs e vice-versa
     private final ObjectMapperUtil objectMapperUtil;
 
     /**
-     * Lista todos os usuários.
-     * GET /usuarios/findall
-     * Usa mapAll para converter a lista de Usuario em lista de UsuarioGetResponseDto
-     * garantindo que a senha não seja exposta na resposta
+     * Lista todos os usuários paginados.
+     * GET /usuarios
+     * Requer: autenticação (qualquer perfil)
      */
     @Override
-    @GetMapping(path = "/findall", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Page<UsuarioGetResponseDto>> findAll(Pageable pageable) {
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(this.usuarioIService.findAll(pageable)
-                        .map(c -> objectMapperUtil.map(c, UsuarioGetResponseDto.class)));
+        return ResponseEntity.ok(
+                usuarioIService.findAll(pageable)
+                        .map(u -> objectMapperUtil.map(u, UsuarioGetResponseDto.class))
+        );
     }
 
     /**
      * Busca usuário por ID.
-     * GET /usuarios/findbyid/{id}
-     * Converte o Usuario encontrado para DTO antes de retornar
-     * se não encontrar retorna 404
+     * GET /usuarios/{id}
+     * Requer: autenticação
      */
     @Override
-    @GetMapping(path = "/findbyid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findById(@PathVariable Long id) {
         return usuarioIService.findById(id)
                 .<ResponseEntity<?>>map(u -> ResponseEntity.ok(
@@ -55,10 +54,11 @@ public class UsuarioController implements UsuarioIController {
 
     /**
      * Busca usuários pelo nome.
-     * GET /usuarios/findbynome?nome=Ana
+     * GET /usuarios/buscar?nome=...
+     * Requer: autenticação
      */
     @Override
-    @GetMapping(path = "/findbynome", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/buscar", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByNome(@RequestParam String nome) {
         return ResponseEntity.ok(objectMapperUtil.mapAll(
                 usuarioIService.findByNome(nome),
@@ -67,46 +67,49 @@ public class UsuarioController implements UsuarioIController {
 
     /**
      * Cadastra um novo usuário.
-     * POST /usuarios/save
+     * POST /usuarios
+     * Requer: PÚBLICO (sem token) — é o fluxo de registro
      */
     @Override
-    @PostMapping(path = "/save",
-            consumes = MediaType.APPLICATION_JSON_VALUE,
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> save(@RequestBody @Valid UsuarioPostRequestDto usuarioPostRequestDto) {
-        // Converte o DTO de entrada para a entidade Usuario
+    public ResponseEntity<?> save(@RequestBody @Valid UsuarioPostRequestDto dto) {
+        // Converte o DTO para entidade — o service vai criptografar a senha e fixar o perfil
         Usuario salvo = usuarioIService.save(
-                objectMapperUtil.map(usuarioPostRequestDto, Usuario.class));
-        // Converte o Usuario salvo para DTO de saída e retorna 201
+                objectMapperUtil.map(dto, Usuario.class));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(objectMapperUtil.map(salvo, UsuarioGetResponseDto.class));
     }
 
     /**
-     * Atualiza nome e foto de perfil.
+     * Atualiza nome e foto de perfil do usuário.
      * PUT /usuarios/update/{id}
+     * Requer: autenticação
+     *
+     * Usa UsuarioPutRequestDto (só nome e fotoPerfil) — email e senha
+     * têm fluxos próprios e não são alterados aqui.
      */
     @Override
-    @PutMapping(path = "/update/{id}",
+    @PutMapping(path = "/{id}",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody @Valid UsuarioPostRequestDto usuarioPostRequestDto) {
-        // Converte o DTO de entrada para entidade e atualiza
-        Usuario atualizado = usuarioIService.update(id,
-                objectMapperUtil.map(usuarioPostRequestDto, Usuario.class));
-        // Retorna o usuário atualizado como DTO de saída
+    public ResponseEntity<?> update(@PathVariable Long id,
+                                    @RequestBody @Valid UsuarioPutRequestDto dto) {
+        // Passa o DTO diretamente para o service — não converte para entidade
+        // para garantir que só nome e fotoPerfil sejam atualizados
+        Usuario atualizado = usuarioIService.update(id, dto);
         return ResponseEntity.ok(
                 objectMapperUtil.map(atualizado, UsuarioGetResponseDto.class));
     }
 
     /**
      * Remove um usuário pelo ID.
-     * DELETE /usuarios/delete/{id}
+     * DELETE /usuarios/{id}
+     * Requer: ADMINISTRADOR (protegido no SecurityConfig)
      */
     @Override
-    @DeleteMapping(path = "/delete/{id}")
+    @DeleteMapping(path = "/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
-        // O ApiExceptionHandler cuida do erro caso o usuário não exista
         usuarioIService.delete(id);
         return ResponseEntity.noContent().build();
     }

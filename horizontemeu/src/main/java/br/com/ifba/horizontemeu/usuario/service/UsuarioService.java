@@ -1,6 +1,10 @@
 package br.com.ifba.horizontemeu.usuario.service;
 
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
+import br.com.ifba.horizontemeu.infrastructure.security.JwtUtil;
+import br.com.ifba.horizontemeu.usuario.dto.LoginRequestDto;
+import br.com.ifba.horizontemeu.usuario.dto.LoginResponseDto;
+import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
 import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import br.com.ifba.horizontemeu.usuario.repository.UsuarioRepository;
@@ -8,6 +12,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,6 +25,8 @@ import org.springframework.data.domain.Pageable;
 public class UsuarioService implements UsuarioIService {
 
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder; // injetado do bean em SecurityConfig
+    private final JwtUtil jwtUtil;
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
     @Override
@@ -60,10 +67,14 @@ public class UsuarioService implements UsuarioIService {
         // Preenche a data de cadastro automaticamente
         usuario.setDataCadastro(LocalDate.now());
 
-        // Define perfil padrão caso não seja informado
-        if (usuario.getPerfil() == null) {
-            usuario.setPerfil(Perfil.USUARIO);
-        }
+        // Perfil fixo como USUARIO — ninguém se auto-promove a ADMINISTRADOR via API
+        // Se precisar criar um admin, isso é feito diretamente no banco ou por endpoint
+        // separado protegido (não implementado aqui por ser específico de cada projeto)
+        usuario.setPerfil(Perfil.USUARIO);
+
+        // Criptografa a senha com BCrypt antes de salvar
+        // BCrypt gera um salt aleatório internamente — senhas iguais geram hashes diferentes
+        usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
 
         log.info("Salvando novo usuário: {}", usuario.getEmail());
         return usuarioRepository.save(usuario);
@@ -71,18 +82,17 @@ public class UsuarioService implements UsuarioIService {
 
     @Transactional
     @Override
-    public Usuario update(Long id, Usuario usuarioAtualizado) {
-        // Lança BusinessException se o usuário não for encontrado
+    public Usuario update(Long id, UsuarioPutRequestDto dto) {
         Usuario existente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Usuário não encontrado com id: " + id));
 
-        existente.setNome(usuarioAtualizado.getNome());
-        existente.setFotoPerfil(usuarioAtualizado.getFotoPerfil());
+        // Atualiza APENAS nome e foto — email e senha têm fluxos próprios
+        existente.setNome(dto.getNome());
+        existente.setFotoPerfil(dto.getFotoPerfil());
 
         log.info("Atualizando usuário id: {}", id);
         return usuarioRepository.save(existente);
     }
-
 
     @Transactional
     @Override
@@ -93,5 +103,47 @@ public class UsuarioService implements UsuarioIService {
         }
         log.info("Removendo usuário id: {}", id);
         usuarioRepository.deleteById(id);
+    }
+
+    /**
+     * Autentica o usuário e retorna o JWT.
+     *
+     * Fluxo:
+     *   1. Busca o usuário pelo email
+     *   2. Compara a senha enviada com o hash salvo (passwordEncoder.matches)
+     *   3. Gera o token JWT com email e perfil
+     *   4. Retorna o token + dados básicos do usuário
+     *
+     * Importante: a mensagem de erro é genérica ("Credenciais inválidas") mesmo quando
+     * o email não existe. Isso evita que um atacante descubra quais emails estão cadastrados
+     * (técnica chamada user enumeration).
+     */
+    @Override
+    public LoginResponseDto login(LoginRequestDto dto) {
+        Usuario usuario = usuarioRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new BusinessException("Credenciais inválidas."));
+
+        // passwordEncoder.matches compara o texto puro com o hash BCrypt
+        // Retorna false se a senha estiver errada
+        if (!passwordEncoder.matches(dto.getSenha(), usuario.getSenha())) {
+            throw new BusinessException("Credenciais inválidas.");
+        }
+
+        // Gera o token JWT com email e perfil (ex: "USUARIO" ou "ADMINISTRADOR")
+        String token = jwtUtil.gerarToken(
+                usuario.getEmail(),
+                usuario.getPerfil().name() // converte o Enum para String
+        );
+
+        log.info("Login realizado com sucesso para: {}", usuario.getEmail());
+
+        // Retorna token + dados básicos — o front não precisa de outra chamada
+        return new LoginResponseDto(
+                token,
+                usuario.getId(),
+                usuario.getNome(),
+                usuario.getEmail(),
+                usuario.getPerfil().name()
+        );
     }
 }

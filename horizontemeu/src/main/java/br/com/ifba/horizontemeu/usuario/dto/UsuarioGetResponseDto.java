@@ -3,26 +3,40 @@ package br.com.ifba.horizontemeu.usuario.dto;
 import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Data
+
+/**
+ * DTO de SAÍDA para respostas com dados do usuário.
+ *
+ * Campos omitidos propositalmente por segurança:
+ *   - senha       — nunca deve trafegar, mesmo em hash
+ *   - tokenResetSenha / tokenExpiracao — dados internos de segurança
+ *
+ * O "id" agora é incluído pois o front-end precisa dele para compor
+ * outras requisições (ex: buscar favoritos, comentários, roteiros do usuário).
+ */
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
-// DTO de SAÍDA — define quais campos são retornados ao cliente
-// senha e id são omitidos propositalmente por segurança
 public class UsuarioGetResponseDto {
 
-    //nome do usuario
-    @JsonProperty(value = "nome")
+    // Incluído — o front precisa do ID para montar URLs de outras entidades
+    @JsonProperty("id")
+    private Long id;
+
+    @JsonProperty("nome")
     private String nome;
 
-    @JsonProperty(value = "email")
+    @JsonProperty("email")
     private String email;
 
-    @JsonProperty(value = "perfil")
+    @JsonProperty("perfil")
     private Perfil perfil;
 
-    @JsonProperty(value = "fotoPerfil")
+    @JsonProperty("fotoPerfil")
     private String fotoPerfil;
 }
