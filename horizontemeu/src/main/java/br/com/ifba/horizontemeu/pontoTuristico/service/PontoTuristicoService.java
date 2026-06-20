@@ -1,6 +1,7 @@
 package br.com.ifba.horizontemeu.pontoTuristico.service;
 
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
+import br.com.ifba.horizontemeu.pontoTuristico.dto.PontoTuristicoPutRequestDto;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.pontoTuristico.repository.PontoTuristicoRepository;
 import jakarta.transaction.Transactional;
@@ -57,17 +58,19 @@ public class PontoTuristicoService implements PontoTuristicoIService {
 
     @Transactional
     @Override
-    public PontoTuristico update(Long id, PontoTuristico pontoUpdate) {
+    public PontoTuristico update(Long id, PontoTuristicoPutRequestDto dto) {
         PontoTuristico existente = pontoTuristicoRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Ponto turístico não encontrado com id: " + id));
 
-        existente.setNome(pontoUpdate.getNome());
-        existente.setDescricao(pontoUpdate.getDescricao());
-        existente.setCidade(pontoUpdate.getCidade());
-        existente.setPais(pontoUpdate.getPais());
-        existente.setLatitude(pontoUpdate.getLatitude());
-        existente.setLongitude(pontoUpdate.getLongitude());
-        existente.setCategoria(pontoUpdate.getCategoria());
+        // Atualiza todos os campos editáveis
+        // notaMedia NÃO é atualizada aqui — é recalculada automaticamente (RN04)
+        existente.setNome(dto.getNome());
+        existente.setDescricao(dto.getDescricao());
+        existente.setCidade(dto.getCidade());
+        existente.setPais(dto.getPais());
+        existente.setLatitude(dto.getLatitude());
+        existente.setLongitude(dto.getLongitude());
+        existente.setCategoria(dto.getCategoria());
 
         log.info("Atualizando ponto turístico id: {}", id);
         return pontoTuristicoRepository.save(existente);

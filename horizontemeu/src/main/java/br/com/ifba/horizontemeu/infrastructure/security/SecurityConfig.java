@@ -23,6 +23,18 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * @EnableMethodSecurity — habilita @PreAuthorize nos métodos de service/controller
  *
  * Política geral: STATELESS (sem sessão HTTP — cada request precisa do token JWT)
+ *
+ * Rotas públicas (sem token):
+ *   POST /auth/login       — fazer login
+ *   POST /usuarios         — criar conta
+ *   GET  /pontos/**        — qualquer leitura de pontos turísticos
+ *
+ * Rotas exclusivas de ADMINISTRADOR:
+ *   POST/PUT/DELETE /pontos/**     — cadastrar, editar e remover pontos
+ *   /fotos/aprovar/**              — aprovar fotos enviadas por usuários
+ *   DELETE /usuarios/**            — remover usuários
+ *
+ * Qualquer outra rota: exige token válido (qualquer perfil)
  */
 @Configuration
 @EnableWebSecurity
@@ -44,34 +56,37 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // ── ROTAS PÚBLICAS (Ninguém precisa de Token aqui) ──
-                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll() // Fazer login
-                        .requestMatchers(HttpMethod.POST, "/usuarios").permitAll() // Criar conta (POST limpo em /usuarios)
-                        .requestMatchers(HttpMethod.GET,  "/pontos-turisticos/findall").permitAll()
-                        .requestMatchers(HttpMethod.GET,  "/pontos-turisticos/findbyid/**").permitAll()
-                        .requestMatchers(HttpMethod.GET,  "/pontos-turisticos/findbynome").permitAll()
+                        // ── ROTAS PÚBLICAS (sem token) ────────────────────────────────────
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
 
-                        // Console do banco de dados de teste (Apenas para programar)
+                        // Qualquer leitura de pontos turísticos é pública
+                        // visitantes podem explorar o mapa sem estar logados
+                        .requestMatchers(HttpMethod.GET, "/pontos/**").permitAll()
+
+                        // Console H2 — apenas desenvolvimento, REMOVER em produção
                         .requestMatchers("/h2-console/**").permitAll()
 
-                        // ── ROTAS EXCLUSIVAS DO ADMINISTRADOR (Exige perfil ADMIN) ──
-                        // Gerenciamento de pontos turísticos [cite: 14]
-                        .requestMatchers(HttpMethod.POST,   "/pontos-turisticos/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers(HttpMethod.PUT,    "/pontos-turisticos/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers(HttpMethod.DELETE, "/pontos-turisticos/**").hasRole("ADMINISTRADOR")
-                        // Aprovação de fotos da galeria [cite: 14, 105]
+                        // ── ROTAS EXCLUSIVAS DO ADMINISTRADOR ────────────────────────────
+                        // Só admin cadastra, edita e remove pontos turísticos (RN07)
+                        .requestMatchers(HttpMethod.POST,   "/pontos/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.PUT,    "/pontos/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.DELETE, "/pontos/**").hasRole("ADMINISTRADOR")
+
+                        // Só admin aprova fotos enviadas pelos usuários (RN08)
                         .requestMatchers("/fotos/aprovar/**").hasRole("ADMINISTRADOR")
-                        // Excluir contas (DELETE limpo na rota /usuarios/{id})
+
+                        // Só admin pode deletar contas de usuários (RN13)
                         .requestMatchers(HttpMethod.DELETE, "/usuarios/**").hasRole("ADMINISTRADOR")
 
-                        // ── QUALQUER OUTRA ROTA: Bloqueia tudo. É obrigatório estar logado ──
+                        // ── QUALQUER OUTRA ROTA: exige autenticação ───────────────────────
                         .anyRequest().authenticated()
                 )
 
-                // Ativa o nosso leitor de crachá (Filtro JWT) logo na entrada do sistema
+                // Registra o filtro JWT antes do filtro padrão do Spring Security
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Permite o funcionamento do painel do banco de teste na tela
+                // Permite iframe do H2 console — REMOVER em produção
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()));
 
         return http.build();
@@ -79,7 +94,7 @@ public class SecurityConfig {
 
     /**
      * Gerenciador de Autenticação do Spring Security.
-     * Adicionado explicitamente para desativar a geração de senhas aleatórias no console.
+     * Declarado explicitamente para desativar a geração de senhas aleatórias no console.
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -87,7 +102,8 @@ public class SecurityConfig {
     }
 
     /**
-     * MOTOR DE CRIPTOGRAFIA: Serve para embaralhar as senhas dos usuários.
+     * Bean de BCrypt — motor de criptografia das senhas.
+     * Declarado aqui para ficar centralizado na configuração de segurança.
      */
     @Bean
     public PasswordEncoder passwordEncoder() {

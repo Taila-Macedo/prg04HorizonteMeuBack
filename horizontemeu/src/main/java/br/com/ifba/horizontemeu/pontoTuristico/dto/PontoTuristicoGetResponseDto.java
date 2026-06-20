@@ -11,8 +11,17 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-// DTO de SAÍDA — define quais campos são retornados ao cliente
+/**
+ * DTO de SAÍDA para respostas com dados do ponto turístico.
+ * O "id" é incluído pois o front precisa dele para compor
+ * outras requisições (fotos, comentários, favoritos, roteiros).
+ * "notaMedia" não é enviada no cadastro — começa em 0.0 e é
+ * recalculada automaticamente a cada comentário (RN04).
+ */
 public class PontoTuristicoGetResponseDto {
+
+    @JsonProperty("id")
+    private Long id;
 
     @JsonProperty(value = "nome")
     private String  nome;
@@ -32,6 +41,7 @@ public class PontoTuristicoGetResponseDto {
     @JsonProperty(value = "longitude")
     private Float longitude;
 
+    // Recalculada automaticamente — só leitura, nunca enviada pelo cliente
     @JsonProperty(value = "notaMedia")
     private Float notaMedia;
 

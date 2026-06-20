@@ -3,47 +3,46 @@ package br.com.ifba.horizontemeu.pontoTuristico.controller;
 import br.com.ifba.horizontemeu.infrastructure.mapper.ObjectMapperUtil;
 import br.com.ifba.horizontemeu.pontoTuristico.dto.PontoTuristicoGetResponseDto;
 import br.com.ifba.horizontemeu.pontoTuristico.dto.PontoTuristicoPostRequestDto;
+import br.com.ifba.horizontemeu.pontoTuristico.dto.PontoTuristicoPutRequestDto;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.pontoTuristico.service.PontoTuristicoIService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.print.attribute.standard.Media;
-
 @RestController
-@RequestMapping(path = "/pontos")
+@RequestMapping("/pontos")
 @RequiredArgsConstructor
-public class PontoTuristicoController implements PontoTuristicoIController{
+public class PontoTuristicoController implements PontoTuristicoIController {
 
     private final PontoTuristicoIService pontoTuristicoIService;
-    // coloca o ObjectMapperUtil para converter entidades em DTOs e vice-versa
     private final ObjectMapperUtil objectMapperUtil;
 
     /**
-     * Lista todos os pontos turísticos
-     * GET /pontos/findall
+     * Lista todos os pontos turísticos paginados.
+     * GET /pontos?page=0&size=10
+     * Requer: público (qualquer um pode ver os pontos)
      */
     @Override
-    @GetMapping(path = "/findall", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findAll(Pageable pageable) {
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(this.pontoTuristicoIService.findAll(pageable)
+        return ResponseEntity.ok(
+                pontoTuristicoIService.findAll(pageable)
                         .map(p -> objectMapperUtil.map(p, PontoTuristicoGetResponseDto.class)));
     }
 
     /**
-     * Busca usuário por ID.
-     * GET /pontos/findbyid/{id}
-     * Converte o Usuario encontrado para DTO antes de retornar
-     * se não encontrar retorna 404
+     * Busca ponto turístico por ID.
+     * GET /pontos/{id}
+     * Requer: público
      */
     @Override
-    @GetMapping(path = "/findbyid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findById(@PathVariable Long id) {
         return pontoTuristicoIService.findById(id)
                 .<ResponseEntity<?>>map(p -> ResponseEntity.ok(
@@ -53,11 +52,12 @@ public class PontoTuristicoController implements PontoTuristicoIController{
     }
 
     /**
-     * Busca pontos turísticos pelo nome.
-     * GET /pontos/findbynome?nome=Torre
+     * Busca pontos pelo nome.
+     * GET /pontos/buscar?nome=Torre
+     * Requer: público
      */
     @Override
-    @GetMapping(path = "/findbynome", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/buscar", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByNome(@RequestParam String nome) {
         return ResponseEntity.ok(objectMapperUtil.mapAll(
                 pontoTuristicoIService.findByNome(nome),
@@ -66,40 +66,46 @@ public class PontoTuristicoController implements PontoTuristicoIController{
 
     /**
      * Cadastra um novo ponto turístico.
-     * POST /pontos/save
+     * POST /pontos
+     * Requer: ADMINISTRADOR — protegido no SecurityConfig
+     * notaMedia é iniciada em 0.0 pelo service automaticamente (RN04)
      */
     @Override
-    @PostMapping(path = "/save",
-            consumes = MediaType.APPLICATION_JSON_VALUE,
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> save(@RequestBody @Valid PontoTuristicoPostRequestDto pontoTuristicoPostRequestDto) {
+    public ResponseEntity<?> save(@RequestBody @Valid PontoTuristicoPostRequestDto dto) {
         PontoTuristico salvo = pontoTuristicoIService.save(
-                objectMapperUtil.map(pontoTuristicoPostRequestDto, PontoTuristico.class));
+                objectMapperUtil.map(dto, PontoTuristico.class));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(objectMapperUtil.map(salvo, PontoTuristicoGetResponseDto.class));
     }
 
     /**
      * Atualiza um ponto turístico.
-     * PUT /pontos/update/{id}
+     * PUT /pontos/{id}
+     * Requer: ADMINISTRADOR — protegido no SecurityConfig
+     * notaMedia não é alterada aqui — recalculada automaticamente (RN04)
      */
     @Override
-    @PutMapping(path = "/update/{id}",
-        consumes = MediaType.APPLICATION_JSON_VALUE,
-        produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody @Valid PontoTuristicoPostRequestDto pontoTuristicoPostRequestDto) {
-        PontoTuristico atualizado = pontoTuristicoIService.update(id,
-                objectMapperUtil.map(pontoTuristicoPostRequestDto, PontoTuristico.class));
+    @PutMapping(path = "/{id}",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> update(@PathVariable Long id,
+                                    @RequestBody @Valid PontoTuristicoPutRequestDto dto) {
+        // Passa o DTO diretamente para o service
+        // para garantir que notaMedia não seja sobrescrita
+        PontoTuristico atualizado = pontoTuristicoIService.update(id, dto);
         return ResponseEntity.ok(
                 objectMapperUtil.map(atualizado, PontoTuristicoGetResponseDto.class));
     }
 
     /**
      * Remove um ponto turístico pelo ID.
-     * DELETE /pontos/delete/{id}
+     * DELETE /pontos/{id}
+     * Requer: ADMINISTRADOR — protegido no SecurityConfig
      */
     @Override
-    @DeleteMapping(path = "/delete/{id}")
+    @DeleteMapping(path = "/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         pontoTuristicoIService.delete(id);
         return ResponseEntity.noContent().build();
