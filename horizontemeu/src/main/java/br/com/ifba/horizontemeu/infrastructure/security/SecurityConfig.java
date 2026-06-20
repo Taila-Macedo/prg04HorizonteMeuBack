@@ -59,6 +59,8 @@ public class SecurityConfig {
                         // ── ROTAS PÚBLICAS (sem token) ────────────────────────────────────
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
+                        // Galeria pública — qualquer um pode ver fotos aprovadas de um ponto
+                        .requestMatchers(HttpMethod.GET, "/fotos/ponto/**").permitAll()
 
                         // Qualquer leitura de pontos turísticos é pública
                         // visitantes podem explorar o mapa sem estar logados
@@ -75,6 +77,9 @@ public class SecurityConfig {
 
                         // Só admin aprova fotos enviadas pelos usuários (RN08)
                         .requestMatchers("/fotos/aprovar/**").hasRole("ADMINISTRADOR")
+
+                        // Lista de fotos pendentes — só admin vê (RN08)
+                        .requestMatchers(HttpMethod.GET, "/fotos/aprovacao").hasRole("ADMINISTRADOR")
 
                         // Só admin pode deletar contas de usuários (RN13)
                         .requestMatchers(HttpMethod.DELETE, "/usuarios/**").hasRole("ADMINISTRADOR")

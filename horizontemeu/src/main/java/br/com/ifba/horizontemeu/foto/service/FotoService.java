@@ -46,10 +46,11 @@ public class FotoService implements FotoIService{
     @Override
     public List<Foto> findByPontoTuristico(Long idPonto) {
         log.info("Buscando fotos do ponto turístico id: {}", idPonto);
-        PontoTuristico ponto = pontoTuristicoRepository.findById(idPonto)
-                .orElseThrow(() -> new BusinessException("Ponto turístico não encontrado com id: " + idPonto));
-        return fotoRepository.findByPontoTuristico(ponto);
 
+        // Se o ponto não existir retorna lista vazia em vez de lançar exceção
+        return pontoTuristicoRepository.findById(idPonto)
+                .map(fotoRepository::findByPontoTuristico)
+                .orElse(List.of());
     }
 
     @Override
