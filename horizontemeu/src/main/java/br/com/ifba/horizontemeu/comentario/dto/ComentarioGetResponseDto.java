@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ComentarioGetResponseDto {
 
+    @JsonProperty(value = "id")
+    private Long id;
+
     @JsonProperty(value = "texto")
     private String texto;
 
@@ -31,4 +34,10 @@ public class ComentarioGetResponseDto {
 
     @JsonProperty(value = "editado")
     private Boolean editado;
+
+    @JsonProperty(value = "idUsuario")
+    private Long idUsuario;
+
+    @JsonProperty(value = "idPontoTuristico")
+    private Long idPontoTuristico;
 }

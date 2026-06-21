@@ -2,7 +2,9 @@ package br.com.ifba.horizontemeu.comentario.controller;
 
 import br.com.ifba.horizontemeu.comentario.dto.ComentarioGetResponseDto;
 import br.com.ifba.horizontemeu.comentario.dto.ComentarioPostRequestDto;
+import br.com.ifba.horizontemeu.comentario.dto.ComentarioPutRequestDto;
 import br.com.ifba.horizontemeu.comentario.entity.Comentario;
+import br.com.ifba.horizontemeu.comentario.mapper.ComentarioMapper;
 import br.com.ifba.horizontemeu.comentario.service.ComentarioIService;
 import br.com.ifba.horizontemeu.infrastructure.mapper.ObjectMapperUtil;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
@@ -22,66 +24,73 @@ import org.springframework.web.bind.annotation.*;
 public class ComentarioController implements ComentarioIController {
 
     private final ComentarioIService comentarioIService;
-    private final ObjectMapperUtil objectMapperUtil;
+
+    //ComentarioMapper para conversões com campos aninhados
+    private final ComentarioMapper comentarioMapper;
 
     /**
      * Lista todos os comentários paginados.
-     * GET /comentarios/findall
+     * GET /comentarios?page=0&size=10
+     * Requer: autenticação
      */
     @Override
-    @GetMapping(path = "/findall", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Page<ComentarioGetResponseDto>> findAll(Pageable pageable) {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(comentarioIService.findAll(pageable)
-                        .map(c -> objectMapperUtil.map(c, ComentarioGetResponseDto.class)));
+                        .map(c -> comentarioMapper.toDto(c)));
     }
 
     /**
      * Busca comentário por ID.
-     * GET /comentarios/findbyid/{id}
-     * Se não encontrar retorna 404
+     * GET /comentarios/{id}
+     * Requer: autenticação
      */
     @Override
-    @GetMapping(path = "/findbyid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findById(@PathVariable Long id) {
         return comentarioIService.findById(id)
-                .<ResponseEntity<?>>map(c -> ResponseEntity.ok(
-                        objectMapperUtil.map(c, ComentarioGetResponseDto.class)))
+                .<ResponseEntity<?>>map(c -> ResponseEntity.ok(comentarioMapper.toDto(c)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body("Comentário não encontrado com id: " + id));
     }
 
     /**
      * Busca todos os comentários de um ponto turístico.
-     * GET /comentarios/findbyponto/{idPonto}
+     * GET /comentarios/ponto/{idPonto}
+     * Requer: público — comentários são visíveis para todos
      */
     @Override
-    @GetMapping(path = "/findbyponto/{idPonto}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/ponto/{idPonto}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByPontoTuristico(@PathVariable Long idPonto) {
-        return ResponseEntity.ok(objectMapperUtil.mapAll(
-                comentarioIService.findByPontoTuristico(idPonto),
-                ComentarioGetResponseDto.class));
+        return ResponseEntity.ok(
+                comentarioMapper.toDtoList(
+                        comentarioIService.findByPontoTuristico(idPonto)));
     }
 
     /**
      * Busca todos os comentários de um usuário.
-     * GET /comentarios/findbyusuario/{idUsuario}
+     * GET /comentarios/usuario/{idUsuario}
+     * Requer: autenticação
      */
     @Override
-    @GetMapping(path = "/findbyusuario/{idUsuario}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/usuario/{idUsuario}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByUsuario(@PathVariable Long idUsuario) {
-        return ResponseEntity.ok(objectMapperUtil.mapAll(
-                comentarioIService.findByUsuario(idUsuario),
-                ComentarioGetResponseDto.class));
+        return ResponseEntity.ok(
+                comentarioMapper.toDtoList(
+                        comentarioIService.findByUsuario(idUsuario)));
     }
 
     /**
-     * Publica um novo comentário.
-     * POST /comentarios/save
+     * Publica um novo comentário em um ponto turístico.
+     * POST /comentarios
+     * Requer: autenticação
+     * - curtidas começa em 0 automaticamente
+     * - editado começa como false automaticamente
+     * - data é preenchida automaticamente pelo service
      */
     @Override
-    @PostMapping(path = "/save",
-            consumes = MediaType.APPLICATION_JSON_VALUE,
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> save(@RequestBody @Valid ComentarioPostRequestDto dto) {
         Comentario comentario = new Comentario();
@@ -89,7 +98,7 @@ public class ComentarioController implements ComentarioIController {
         comentario.setNota(dto.getNota());
         comentario.setFotoUrl(dto.getFotoUrl());
 
-        // cria objetos com só o ID para o Service buscar e validar
+        // Cria objetos com só o ID para o service buscar e validar no banco
         Usuario usuario = new Usuario();
         usuario.setId(dto.getIdUsuario());
         comentario.setUsuario(usuario);
@@ -100,45 +109,48 @@ public class ComentarioController implements ComentarioIController {
 
         Comentario salvo = comentarioIService.save(comentario);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(objectMapperUtil.map(salvo, ComentarioGetResponseDto.class));
+                .body(comentarioMapper.toDto(salvo));
     }
 
     /**
-     * Atualiza o texto e/ou foto de um comentário.
-     * PUT /comentarios/update/{id}
+     * Atualiza texto e/ou foto de um comentário.
+     * PUT /comentarios/{id}
+     * Requer: autenticação — RN13: só o dono ou admin pode editar
+     * Nota é imutável — não pode ser alterada após publicação
      */
     @Override
-    @PutMapping(path = "/update/{id}",
+    @PutMapping(path = "/{id}",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody @Valid ComentarioPostRequestDto dto) {
-        Comentario comentarioUpdate = new Comentario();
-        comentarioUpdate.setTexto(dto.getTexto());
-        comentarioUpdate.setFotoUrl(dto.getFotoUrl());
-
-        Comentario atualizado = comentarioIService.update(id, comentarioUpdate);
-        return ResponseEntity.ok(
-                objectMapperUtil.map(atualizado, ComentarioGetResponseDto.class));
+    public ResponseEntity<?> update(@PathVariable Long id,
+                                    @RequestBody @Valid ComentarioPutRequestDto dto) {
+        // Passa o DTO diretamente — service garante que só texto e fotoUrl mudam
+        Comentario atualizado = comentarioIService.update(id, dto);
+        return ResponseEntity.ok(comentarioMapper.toDto(atualizado));
     }
 
     /**
      * Incrementa o contador de curtidas do comentário em 1.
-     * PATCH /comentarios/curtir/{id}
+     * PATCH /comentarios/{id}/curtir
+     * Requer: autenticação
+     * Atenção: RN21 — curtida única por usuário não está implementada ainda
+     * (precisa de tabela auxiliar CurtidaComentario)
      */
     @Override
-    @PatchMapping(path = "/curtir/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PatchMapping(path = "/{id}/curtir", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> curtir(@PathVariable Long id) {
-        Comentario curtido = comentarioIService.curtir(id);
         return ResponseEntity.ok(
-                objectMapperUtil.map(curtido, ComentarioGetResponseDto.class));
+                comentarioMapper.toDto(comentarioIService.curtir(id)));
     }
 
     /**
      * Remove um comentário pelo ID.
-     * DELETE /comentarios/delete/{id}
+     * DELETE /comentarios/{id}
+     * Requer: autenticação — RN13: só o dono ou admin pode deletar
+     * Após deletar, nota_media do ponto é recalculada automaticamente (RN04)
      */
     @Override
-    @DeleteMapping(path = "/delete/{id}")
+    @DeleteMapping(path = "/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         comentarioIService.delete(id);
         return ResponseEntity.noContent().build();

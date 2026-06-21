@@ -1,5 +1,6 @@
 package br.com.ifba.horizontemeu.comentario.service;
 
+import br.com.ifba.horizontemeu.comentario.dto.ComentarioPutRequestDto;
 import br.com.ifba.horizontemeu.comentario.entity.Comentario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,7 +14,7 @@ public interface ComentarioIService {
     List<Comentario> findByPontoTuristico(Long idPonto);
     List<Comentario> findByUsuario(Long idUsuario);
     Comentario save(Comentario comentario);
-    Comentario update(Long id, Comentario comentarioUpdate);
+    Comentario update(Long id, ComentarioPutRequestDto dto);
     Comentario curtir(Long id);
     void delete(Long id);
 }

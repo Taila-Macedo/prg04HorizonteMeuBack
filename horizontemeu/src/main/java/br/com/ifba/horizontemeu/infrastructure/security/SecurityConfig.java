@@ -61,6 +61,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
                         // Galeria pública — qualquer um pode ver fotos aprovadas de um ponto
                         .requestMatchers(HttpMethod.GET, "/fotos/ponto/**").permitAll()
+                        // Comentários de um ponto — público, qualquer um pode ler
+                        .requestMatchers(HttpMethod.GET, "/comentarios/ponto/**").permitAll()
 
                         // Qualquer leitura de pontos turísticos é pública
                         // visitantes podem explorar o mapa sem estar logados

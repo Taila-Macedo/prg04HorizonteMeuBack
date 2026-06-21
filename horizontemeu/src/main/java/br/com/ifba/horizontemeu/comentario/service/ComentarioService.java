@@ -1,5 +1,6 @@
 package br.com.ifba.horizontemeu.comentario.service;
 
+import br.com.ifba.horizontemeu.comentario.dto.ComentarioPutRequestDto;
 import br.com.ifba.horizontemeu.comentario.entity.Comentario;
 import br.com.ifba.horizontemeu.comentario.repository.ComentarioRepository;
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
@@ -43,11 +44,12 @@ public class ComentarioService implements ComentarioIService {
 
     @Override
     public List<Comentario> findByPontoTuristico(Long idPonto) {
-        PontoTuristico ponto = pontoTuristicoRepository.findById(idPonto)
-                .orElseThrow(() -> new BusinessException("Ponto turístco não encontrado."));
-
         log.info("Buscando comentários do ponto turístico id: {}", idPonto);
-        return comentarioRepository.findByPontoTuristico(ponto);
+
+        //Retorna lista vazia se o ponto não existir
+        return pontoTuristicoRepository.findById(idPonto)
+                .map(comentarioRepository::findByPontoTuristico)
+                .orElse(List.of());
     }
 
     @Override
@@ -104,15 +106,15 @@ public class ComentarioService implements ComentarioIService {
 
     @Transactional
     @Override
-    public Comentario update(Long id, Comentario comentarioUpdate) {
+    public Comentario update(Long id, ComentarioPutRequestDto dto) {
         Comentario existente = comentarioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Comentário não encontrado com id: " + id));
 
-        // Atualiza só o texto e a foto — usuário, ponto e data não mudam
-        existente.setTexto(comentarioUpdate.getTexto());
-        existente.setFotoUrl(comentarioUpdate.getFotoUrl());
+        // Atualiza só texto e fotoUrl — nota é imutável, usuário e ponto não mudam
+        existente.setTexto(dto.getTexto());
+        existente.setFotoUrl(dto.getFotoUrl());
 
-        //Marca que o comentário foi editado depois
+        // Marca que o comentário foi editado após a publicação
         existente.setEditado(true);
 
         log.info("Atualizando comentário id: {}", id);
