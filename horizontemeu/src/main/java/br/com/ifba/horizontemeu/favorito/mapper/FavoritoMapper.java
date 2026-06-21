@@ -10,14 +10,15 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface FavoritoMapper {
 
-    // 1. RESOLVE A VOLTA: Entidade -> DTO de Resposta
+    // Entidade → DTO de resposta
+    // id é mapeado automaticamente (mesmo nome)
     @Mapping(source = "pontoTuristico.id", target = "idPontoTuristico")
     FavoritoGetResponseDto toGetResponseDto(Favorito favorito);
 
-    // 2. RESOLVE AS LISTAS: Converte a lista inteira automaticamente
+    // Lista de entidades → lista de DTOs
     List<FavoritoGetResponseDto> toGetResponseDtoList(List<Favorito> favoritos);
 
-    // 3. RESOLVE A IDA: DTO de Envio -> Entidade (Olha a mágica aqui!)
+    // DTO de entrada → Entidade (casca com só os IDs — service completa)
     @Mapping(source = "idUsuario", target = "usuario.id")
     @Mapping(source = "idPontoTuristico", target = "pontoTuristico.id")
     Favorito toEntity(FavoritoPostRequestDto dto);

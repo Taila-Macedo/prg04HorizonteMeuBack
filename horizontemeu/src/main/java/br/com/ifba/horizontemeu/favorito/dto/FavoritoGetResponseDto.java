@@ -21,6 +21,9 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class FavoritoGetResponseDto {
 
+    @JsonProperty(value = "id")
+    private Long id;
+
     @JsonProperty(value = "dataSalvo")
     private LocalDate dataSalvo;
 

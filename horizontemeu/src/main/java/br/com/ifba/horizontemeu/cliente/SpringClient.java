@@ -9,7 +9,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 /**
  * Cliente de testes manual da API Horizonte Meu.
  * USO EXCLUSIVO EM DESENVOLVIMENTO — não é executado em produção.
- * ...
  */
 @Log4j2
 public class SpringClient {
@@ -20,17 +19,19 @@ public class SpringClient {
             .build();
 
     // Variáveis compartilhadas entre todos os módulos
-    static String tokenJwt      = "";
-    static Long   usuarioId     = null;
-    static Long   pontoId       = null;
-    static Long   fotoId        = null;
-    static Long   comentarioId  = null;
+    static String tokenJwt     = "";
+    static Long   usuarioId    = null;
+    static Long   pontoId      = null;
+    static Long   fotoId       = null;
+    static Long   comentarioId = null;
+    static Long   favoritoId   = null;
 
     public static void main(String[] args) {
         testarModuloUsuario();
         testarModuloPontoTuristico();
         testarModuloFoto();
         testarModuloComentario();
+        testarModuloFavorito();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -59,18 +60,15 @@ public class SpringClient {
                       "fotoPerfil": "https://exemplo.com/foto.jpg"
                     }
                     """;
-
             String resposta = clienteBase.post()
                     .uri("http://localhost:8080/usuarios")
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("201 CREATED — " + resposta);
             usuarioId = extrairId(resposta);
             System.out.println("   → ID salvo: " + usuarioId);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -86,27 +84,21 @@ public class SpringClient {
                       "senha": "123456"
                     }
                     """;
-
             String resposta = clienteBase.post()
                     .uri("http://localhost:8080/auth/login")
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
             if (resposta != null && resposta.contains("\"token\":")) {
                 tokenJwt = resposta.split("\"token\":\"")[1].split("\"")[0];
                 System.out.println("   → Token salvo: " + tokenJwt.substring(0, 30) + "...");
             }
-
-            // Salva o ID caso o cadastro tenha falhado (ex: email duplicado)
             if (usuarioId == null) {
                 usuarioId = extrairId(resposta);
                 System.out.println("   → ID recuperado do login: " + usuarioId);
             }
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -122,9 +114,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -140,9 +130,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -158,9 +146,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -176,7 +162,6 @@ public class SpringClient {
                       "fotoPerfil": "https://exemplo.com/nova-foto.jpg"
                     }
                     """;
-
             String resposta = clienteBase.put()
                     .uri("http://localhost:8080/usuarios/" + usuarioId)
                     .header("Authorization", "Bearer " + tokenJwt)
@@ -184,9 +169,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -202,9 +185,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  204 NO CONTENT — deletou (você está logado como ADMIN?)");
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Usuário comum não pode deletar.");
@@ -241,9 +222,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  201 CREATED — cadastrou sem token? Verifique o SecurityConfig!");
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Sem token não cadastra ponto.");
@@ -264,17 +243,14 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("201 CREATED — " + resposta);
             pontoId = extrairId(resposta);
             System.out.println("   → ID do ponto salvo: " + pontoId);
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Token de USUARIO não pode cadastrar ponto.");
             } else if (e.getStatusCode().value() == 400 &&
                     e.getResponseBodyAsString().contains("Já existe")) {
-                // Ponto duplicado — busca o existente pelo nome para continuar os testes
                 ok("400 — ponto já existe no banco. Buscando o existente...");
                 try {
                     String busca = clienteBase.get()
@@ -305,9 +281,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 404) {
                 System.out.println("ℹ️  404 NOT FOUND — nenhum ponto cadastrado ainda.");
@@ -326,9 +300,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -343,9 +315,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -356,29 +326,24 @@ public class SpringClient {
         inicio(13, "PUT /pontos/{id} com token de USUARIO — deve retornar 403");
         try {
             String body = """
-                {
-                  "nome": "Cristo Redentor Atualizado",
-                  "descricao": "Monumento atualizado",
-                  "cidade": "Rio de Janeiro",
-                  "pais": "Brasil",
-                  "latitude": -22.9519,
-                  "longitude": -43.2105,
-                  "categoria": "MONUMENTO"
-                }
-                """;
-
+                    {
+                      "nome": "Cristo Redentor Atualizado",
+                      "descricao": "Monumento atualizado",
+                      "cidade": "Rio de Janeiro",
+                      "pais": "Brasil",
+                      "latitude": -22.9519,
+                      "longitude": -43.2105,
+                      "categoria": "MONUMENTO"
+                    }
+                    """;
             String resposta = clienteBase.put()
-                    // Usa ID fictício para não alterar o ponto que será usado
-                    // nos testes de foto e comentário a seguir
                     .uri("http://localhost:8080/pontos/99999")
                     .header("Authorization", "Bearer " + tokenJwt)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  200 OK — atualizou (você está logado como ADMIN?) — " + resposta);
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Token de USUARIO não pode atualizar ponto.");
@@ -395,16 +360,12 @@ public class SpringClient {
         inicio(14, "DELETE /pontos/{id} com token de USUARIO — deve retornar 403");
         try {
             clienteBase.delete()
-                    // Usa ID fictício para não deletar o ponto que será usado
-                    // nos testes de foto e comentário a seguir
                     .uri("http://localhost:8080/pontos/99999")
                     .header("Authorization", "Bearer " + tokenJwt)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  204 NO CONTENT — deletou (você está logado como ADMIN?)");
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Token de USUARIO não pode deletar ponto.");
@@ -442,9 +403,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  201 CREATED — enviou sem token? Verifique o SecurityConfig!");
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Sem token não envia foto.");
@@ -470,7 +429,6 @@ public class SpringClient {
                       "idPontoTuristico": %d
                     }
                     """, usuarioId, pontoId);
-
             String resposta = clienteBase.post()
                     .uri("http://localhost:8080/fotos")
                     .header("Authorization", "Bearer " + tokenJwt)
@@ -478,11 +436,9 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("201 CREATED — " + resposta);
             fotoId = extrairId(resposta);
             System.out.println("   → ID da foto salvo: " + fotoId);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -499,9 +455,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -517,9 +471,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -535,9 +487,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -553,9 +503,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  200 OK — listou pendentes (você está logado como ADMIN?) — " + resposta);
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Usuário comum não vê fotos pendentes.");
@@ -576,9 +524,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  200 OK — aprovou (você está logado como ADMIN?)");
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Usuário comum não pode aprovar foto.");
@@ -599,9 +545,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("204 NO CONTENT — foto removida com sucesso.");
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -625,7 +569,6 @@ public class SpringClient {
         testarDeletarComentario();
     }
 
-    // ── 23. PUBLICAR COMENTÁRIO SEM TOKEN ─────────────────────────────────────
     static void testarPublicarComentarioSemToken() {
         inicio(23, "POST /comentarios sem token — deve retornar 403");
         try {
@@ -635,9 +578,7 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             System.out.println("   ⚠️  201 CREATED — publicou sem token? Verifique o SecurityConfig!");
-
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Sem token não publica comentário.");
@@ -648,7 +589,6 @@ public class SpringClient {
         System.out.println();
     }
 
-    // ── 24. PUBLICAR COMENTÁRIO COM TOKEN ─────────────────────────────────────
     static void testarPublicarComentario() {
         inicio(24, "POST /comentarios com token — deve retornar 201");
         if (pontoId == null) {
@@ -663,18 +603,15 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("201 CREATED — " + resposta);
             comentarioId = extrairId(resposta);
             System.out.println("   → ID do comentário salvo: " + comentarioId);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 25. BUSCAR COMENTÁRIO POR ID ──────────────────────────────────────────
     static void testarBuscarComentarioPorId() {
         inicio(25, "GET /comentarios/{id} — buscar por ID");
         if (comentarioId == null) { pulado("nenhum comentário cadastrado ainda"); return; }
@@ -685,16 +622,13 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 26. LISTAR COMENTÁRIOS ────────────────────────────────────────────────
     static void testarListarComentarios() {
         inicio(26, "GET /comentarios?page=0&size=5 — listar todos paginado");
         try {
@@ -704,16 +638,13 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 27. BUSCAR COMENTÁRIOS POR PONTO ─────────────────────────────────────
     static void testarBuscarComentariosPorPonto() {
         inicio(27, "GET /comentarios/ponto/{idPonto} — buscar por ponto (público, sem token)");
         Long id = pontoId != null ? pontoId : 1L;
@@ -723,16 +654,13 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 28. BUSCAR COMENTÁRIOS POR USUÁRIO ───────────────────────────────────
     static void testarBuscarComentariosPorUsuario() {
         inicio(28, "GET /comentarios/usuario/{idUsuario} — buscar por usuário");
         try {
@@ -742,16 +670,13 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 29. ATUALIZAR COMENTÁRIO ──────────────────────────────────────────────
     static void testarAtualizarComentario() {
         inicio(29, "PUT /comentarios/{id} — atualizar texto e foto");
         if (comentarioId == null) { pulado("nenhum comentário cadastrado ainda"); return; }
@@ -762,7 +687,6 @@ public class SpringClient {
                       "fotoUrl": "https://exemplo.com/foto-atualizada.jpg"
                     }
                     """;
-
             String resposta = clienteBase.put()
                     .uri("http://localhost:8080/comentarios/" + comentarioId)
                     .header("Authorization", "Bearer " + tokenJwt)
@@ -770,16 +694,13 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 30. CURTIR COMENTÁRIO ─────────────────────────────────────────────────
     static void testarCurtirComentario() {
         inicio(30, "PATCH /comentarios/{id}/curtir — incrementar curtidas");
         if (comentarioId == null) { pulado("nenhum comentário cadastrado ainda"); return; }
@@ -790,16 +711,13 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("200 OK — " + resposta);
-
         } catch (WebClientResponseException e) {
             erro(e);
         }
         System.out.println();
     }
 
-    // ── 31. DELETAR COMENTÁRIO ────────────────────────────────────────────────
     static void testarDeletarComentario() {
         inicio(31, "DELETE /comentarios/{id} — remover comentário");
         if (comentarioId == null) { pulado("nenhum comentário cadastrado ainda"); return; }
@@ -810,9 +728,127 @@ public class SpringClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
             ok("204 NO CONTENT — comentário removido. Nota média do ponto recalculada!");
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
 
+    // ══════════════════════════════════════════════════════════════════════════
+    //   MÓDULO FAVORITO
+    // ══════════════════════════════════════════════════════════════════════════
+
+    static void testarModuloFavorito() {
+        cabecalho("FAVORITO");
+        testarFavoritarSemToken();
+        testarFavoritar();
+        testarFavoritarDuplicado();
+        testarListarFavoritosPorUsuario();
+        testarRemoverFavorito();
+    }
+
+    // ── 32. FAVORITAR SEM TOKEN ───────────────────────────────────────────────
+    static void testarFavoritarSemToken() {
+        inicio(32, "POST /favoritos sem token — deve retornar 403");
+        try {
+            clienteBase.post()
+                    .uri("http://localhost:8080/favoritos")
+                    .bodyValue(bodyFavorito())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  201 CREATED — favoritou sem token? Verifique o SecurityConfig!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 403) {
+                ok("403 FORBIDDEN — correto! Sem token não favorita.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    // ── 33. FAVORITAR COM TOKEN ───────────────────────────────────────────────
+    static void testarFavoritar() {
+        inicio(33, "POST /favoritos com token — deve retornar 201");
+        if (pontoId == null) {
+            pulado("nenhum ponto cadastrado ainda. Dica: Promova um usuário a ADMIN no Neon.");
+            return;
+        }
+        try {
+            String resposta = clienteBase.post()
+                    .uri("http://localhost:8080/favoritos")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(bodyFavorito())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("201 CREATED — " + resposta);
+            favoritoId = extrairId(resposta);
+            System.out.println("   → ID do favorito salvo: " + favoritoId);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    // ── 34. FAVORITAR DUPLICADO (RN03) ────────────────────────────────────────
+    static void testarFavoritarDuplicado() {
+        inicio(34, "POST /favoritos duplicado — deve retornar 400 (RN03)");
+        if (pontoId == null || favoritoId == null) {
+            pulado("favorito anterior não foi criado");
+            return;
+        }
+        try {
+            clienteBase.post()
+                    .uri("http://localhost:8080/favoritos")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(bodyFavorito())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  201 CREATED — duplicata permitida? Verifique a RN03!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 400 &&
+                    e.getResponseBodyAsString().contains("já está nos favoritos")) {
+                ok("400 — correto! RN03 funcionando: ponto já favoritado.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    // ── 35. LISTAR FAVORITOS POR USUÁRIO ─────────────────────────────────────
+    static void testarListarFavoritosPorUsuario() {
+        inicio(35, "GET /favoritos/usuario/{idUsuario} — listar favoritos do usuário");
+        try {
+            String resposta = clienteBase.get()
+                    .uri("http://localhost:8080/favoritos/usuario/" + usuarioId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    // ── 36. REMOVER FAVORITO ──────────────────────────────────────────────────
+    static void testarRemoverFavorito() {
+        inicio(36, "DELETE /favoritos/{id} — remover favorito");
+        if (favoritoId == null) { pulado("nenhum favorito cadastrado ainda"); return; }
+        try {
+            clienteBase.delete()
+                    .uri("http://localhost:8080/favoritos/" + favoritoId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("204 NO CONTENT — favorito removido com sucesso.");
         } catch (WebClientResponseException e) {
             erro(e);
         }
@@ -887,6 +923,16 @@ public class SpringClient {
                   "texto": "Lugar incrível! Visita obrigatória no Rio de Janeiro.",
                   "nota": 5,
                   "fotoUrl": "https://exemplo.com/foto-comentario.jpg",
+                  "idUsuario": %d,
+                  "idPontoTuristico": %d
+                }
+                """, usuarioId != null ? usuarioId : 1L,
+                pontoId  != null ? pontoId  : 1L);
+    }
+
+    static String bodyFavorito() {
+        return String.format("""
+                {
                   "idUsuario": %d,
                   "idPontoTuristico": %d
                 }

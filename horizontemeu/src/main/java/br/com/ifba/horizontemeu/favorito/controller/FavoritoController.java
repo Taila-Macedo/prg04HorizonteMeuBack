@@ -12,52 +12,51 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(path = "/favoritos")
+@RequestMapping("/favoritos")
 @RequiredArgsConstructor
-public class FavoritoController implements FavoritoIController{
+public class FavoritoController implements FavoritoIController {
 
     private final FavoritoIService favoritoIService;
     private final FavoritoMapper favoritoMapper;
 
     /**
      * Lista todos os favoritos de um usuário.
-     * GET /favoritos/findbyusuario/{idUsuario}
+     * GET /favoritos/usuario/{idUsuario}
+     * Requer: autenticação
      */
     @Override
-    @GetMapping(path = "/findbyusuario/{idUsuario}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(path = "/usuario/{idUsuario}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByUsuario(@PathVariable Long idUsuario) {
-        // Usa o MapStruct (favoritoMapper) para converter a lista de Entidades para lista de DTOs
-        return ResponseEntity.ok(favoritoMapper.toGetResponseDtoList(
-                favoritoIService.findByUsuario(idUsuario)
-        ));
+        return ResponseEntity.ok(
+                favoritoMapper.toGetResponseDtoList(
+                        favoritoIService.findByUsuario(idUsuario)));
     }
 
     /**
-     * Adiciona um ponto turístico aos favoritos.
-     * POST /favoritos/save
+     * Adiciona um ponto turístico aos favoritos do usuário.
+     * POST /favoritos
+     * Requer: autenticação
+     * dataSalvo é preenchida automaticamente pelo service
+     * Duplicata é verificada pelo service (RN03)
      */
     @Override
-    @PostMapping(path = "/save",
-            consumes = MediaType.APPLICATION_JSON_VALUE,
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> save(@RequestBody @Valid FavoritoPostRequestDto dto) {
-
-        // O MapStruct converte o DTO para a Entidade, criando a "casca" do Usuario e PontoTuristico sozinho
-        Favorito favorito = favoritoMapper.toEntity(dto);
-
-        Favorito salvo = favoritoIService.save(favorito);
-
-        // Retorna o DTO convertido pelo MapStruct
+        // FavoritoMapper converte o DTO para entidade com usuario.id e pontoTuristico.id
+        // O service busca os objetos completos e valida a duplicata
+        Favorito salvo = favoritoIService.save(favoritoMapper.toEntity(dto));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(favoritoMapper.toGetResponseDto(salvo));
     }
 
     /**
      * Remove um favorito pelo ID.
-     * DELETE /favoritos/delete/{id}
+     * DELETE /favoritos/{id}
+     * Requer: autenticação — RN13: só o dono pode remover o próprio favorito
      */
     @Override
-    @DeleteMapping(path = "/delete/{id}")
+    @DeleteMapping(path = "/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         favoritoIService.delete(id);
         return ResponseEntity.noContent().build();
