@@ -63,6 +63,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/fotos/ponto/**").permitAll()
                         // Comentários de um ponto — público, qualquer um pode ler
                         .requestMatchers(HttpMethod.GET, "/comentarios/ponto/**").permitAll()
+                        // Roteiro público — acessível por link sem autenticação (RN16)
+                        // Só o GET por ID é público — listagem e edição exigem autenticação
+                        .requestMatchers(HttpMethod.GET, "/roteiros/{id}").permitAll()
 
                         // Qualquer leitura de pontos turísticos é pública
                         // visitantes podem explorar o mapa sem estar logados

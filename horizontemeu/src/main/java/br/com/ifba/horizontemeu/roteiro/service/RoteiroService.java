@@ -5,6 +5,7 @@ import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.pontoTuristico.repository.PontoTuristicoRepository;
 import br.com.ifba.horizontemeu.roteiro.dto.RoteiroNoPontoRequestDto;
 import br.com.ifba.horizontemeu.roteiro.dto.RoteiroPostRequestDto;
+import br.com.ifba.horizontemeu.roteiro.dto.RoteiroPutRequestDto;
 import br.com.ifba.horizontemeu.roteiro.entity.Roteiro;
 import br.com.ifba.horizontemeu.roteiro.mapper.RoteiroMapper;
 import br.com.ifba.horizontemeu.roteiro.repository.RoteiroRepository;
@@ -73,19 +74,19 @@ public class RoteiroService implements RoteiroIService {
 
     @Transactional
     @Override
-    public Roteiro update(Long id, RoteiroPostRequestDto dto) {
+    public Roteiro update(Long id, RoteiroPutRequestDto dto) {
         Roteiro roteiro = roteiroRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Roteiro não encontrado com id: " + id));
 
-
+        // Atualiza campos editáveis — idUsuario e dataCriacao nunca mudam
         roteiro.setTitulo(dto.getTitulo());
         roteiro.setDescricao(dto.getDescricao());
         roteiro.setDataViagem(dto.getDataViagem());
         roteiro.setPublico(dto.getPublico() != null ? dto.getPublico() : false);
 
-
+        // Substitui a lista de pontos por completo
+        // CascadeType.ALL + orphanRemoval deletam os antigos automaticamente
         roteiro.getPontos().clear();
-
         if (dto.getPontos() != null && !dto.getPontos().isEmpty()) {
             List<RoteiroNoPonto> novosPontos = montarPontos(dto.getPontos(), roteiro);
             roteiro.getPontos().addAll(novosPontos);
@@ -94,6 +95,7 @@ public class RoteiroService implements RoteiroIService {
         log.info("Atualizando roteiro id: {}", id);
         return roteiroRepository.save(roteiro);
     }
+
 
     @Transactional
     @Override
@@ -137,5 +139,18 @@ public class RoteiroService implements RoteiroIService {
 
         log.info("Ponto turístico do vínculo id {} marcado como visitado: {}", idRoteiroPonto, vinculo.getVisitado());
         roteiroNoPontoRepository.save(vinculo);
+    }
+
+    @Transactional
+    @Override
+    public Roteiro compartilhar(Long id) {
+        Roteiro roteiro = roteiroRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Roteiro não encontrado com id: " + id));
+
+        // Seta publico = true — a partir daqui o roteiro é acessível por link sem autenticação (RN16)
+        roteiro.setPublico(true);
+
+        log.info("Roteiro id {} compartilhado publicamente.", id);
+        return roteiroRepository.save(roteiro);
     }
 }
