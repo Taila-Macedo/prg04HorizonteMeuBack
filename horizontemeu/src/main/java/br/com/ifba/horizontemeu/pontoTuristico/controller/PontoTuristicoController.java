@@ -65,6 +65,19 @@ public class PontoTuristicoController implements PontoTuristicoIController {
     }
 
     /**
+     * Busca pontos turísticos pelo país.
+     * GET /pontos/pais?pais=Brasil
+     * Requer: público
+     */
+    @Override
+    @GetMapping(path = "/pais", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> findByPais(@RequestParam String pais) {
+        return ResponseEntity.ok(objectMapperUtil.mapAll(
+                pontoTuristicoIService.findByPais(pais),
+                PontoTuristicoGetResponseDto.class));
+    }
+
+    /**
      * Cadastra um novo ponto turístico.
      * POST /pontos
      * Requer: ADMINISTRADOR — protegido no SecurityConfig

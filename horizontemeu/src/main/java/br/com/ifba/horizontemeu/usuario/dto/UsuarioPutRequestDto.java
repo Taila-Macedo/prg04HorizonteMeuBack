@@ -33,4 +33,7 @@ public class UsuarioPutRequestDto {
     @JsonProperty("fotoPerfil")
     private String fotoPerfil;
 
+    @JsonProperty("bio")
+    private String bio;
+
 }

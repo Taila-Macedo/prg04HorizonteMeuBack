@@ -89,6 +89,7 @@ public class UsuarioService implements UsuarioIService {
         // Atualiza APENAS nome e foto — email e senha têm fluxos próprios
         existente.setNome(dto.getNome());
         existente.setFotoPerfil(dto.getFotoPerfil());
+        existente.setBio(dto.getBio());
 
         log.info("Atualizando usuário id: {}", id);
         return usuarioRepository.save(existente);

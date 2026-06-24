@@ -45,4 +45,8 @@ public class Usuario extends PersistenceEntity {
 
     //Data/hora de expiração do token de reset (expira em 1 hora)
     private LocalDateTime tokenExpiracao;
+
+    // Biografia curta exibida no perfil público
+    @Column(columnDefinition = "TEXT")
+    private String bio;
 }

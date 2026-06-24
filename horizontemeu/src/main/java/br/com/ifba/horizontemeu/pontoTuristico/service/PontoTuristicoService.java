@@ -93,4 +93,10 @@ public class PontoTuristicoService implements PontoTuristicoIService {
         log.info("buscando ponto turístico pelo nome: {}", nome);
         return pontoTuristicoRepository.findByNomeContainingIgnoreCase(nome);
     }
+
+    @Override
+    public List<PontoTuristico> findByPais(String pais) {
+        log.info("Buscando pontos turísticos pelo país: {}", pais);
+        return pontoTuristicoRepository.findByPais(pais);
+    }
 }

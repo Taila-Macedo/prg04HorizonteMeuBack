@@ -13,4 +13,5 @@ public interface PontoTuristicoIController {
     ResponseEntity<?>  save(PontoTuristicoPostRequestDto pontoTuristicoPostRequestDto);
     ResponseEntity<?> update(Long id, PontoTuristicoPutRequestDto dto);
     ResponseEntity<?> delete(Long id);
+    ResponseEntity<?> findByPais(String pais);
 }

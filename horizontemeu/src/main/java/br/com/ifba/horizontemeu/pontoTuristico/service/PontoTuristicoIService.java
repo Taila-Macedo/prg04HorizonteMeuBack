@@ -16,5 +16,6 @@ public interface PontoTuristicoIService {
     PontoTuristico update(Long id, PontoTuristicoPutRequestDto dto);
     void delete(long id);
     List<PontoTuristico> findByNome(String nome);
+    List<PontoTuristico> findByPais(String pais);
 
 }
