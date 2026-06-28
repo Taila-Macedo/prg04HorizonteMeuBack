@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import br.com.ifba.horizontemeu.config.CloudinaryService;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/fotos")
@@ -26,6 +28,8 @@ public class FotoController implements FotoIController {
     // FotoMapper injetado no lugar do ObjectMapperUtil para conversões de Foto
     // Os outros módulos continuam usando ObjectMapperUtil normalmente
     private final FotoMapper fotoMapper;
+
+    private final CloudinaryService cloudinaryService;
 
     /**
      * Lista todas as fotos paginadas.
@@ -86,20 +90,26 @@ public class FotoController implements FotoIController {
      * aprovado começa como false — aguarda aprovação do admin (RN08)
      */
     @Override
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> save(@RequestBody @Valid FotoPostRequestDto dto) {
-        Foto foto = new Foto();
-        foto.setUrl(dto.getUrl());
-        foto.setLegenda(dto.getLegenda());
+    public ResponseEntity<?> save(
+            @RequestParam("arquivo") MultipartFile arquivo,
+            @RequestParam("idUsuario") Long idUsuario,
+            @RequestParam("idPontoTuristico") Long idPontoTuristico,
+            @RequestParam(value = "legenda", required = false) String legenda) {
 
-        // Cria objetos com só o ID para o service buscar e validar no banco
+        String url = cloudinaryService.uploadFoto(arquivo);
+
+        Foto foto = new Foto();
+        foto.setUrl(url);
+        foto.setLegenda(legenda);
+
         Usuario usuario = new Usuario();
-        usuario.setId(dto.getIdUsuario());
+        usuario.setId(idUsuario);
         foto.setUsuario(usuario);
 
         PontoTuristico ponto = new PontoTuristico();
-        ponto.setId(dto.getIdPontoTuristico());
+        ponto.setId(idPontoTuristico);
         foto.setPontoTuristico(ponto);
 
         Foto salva = fotoIService.save(foto);
