@@ -39,13 +39,9 @@ public class UsuarioService implements UsuarioIService {
     private final PasswordEncoder passwordEncoder; // injetado do bean em SecurityConfig
     private final JwtUtil jwtUtil;
 
-    // Chave da API do Resend — configurada como variável de ambiente no Railway
-    @Value("${resend.api.key}")
-    private String resendApiKey;
-
-    // E-mail remetente — configurado como variável de ambiente no Railway
-    @Value("${resend.from.email}")
-    private String resendFromEmail;
+    // Chave da API do Brevo — configurada como variável de ambiente no Railway
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
 
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
@@ -198,7 +194,7 @@ public class UsuarioService implements UsuarioIService {
         usuario.setTokenExpiracao(LocalDateTime.now().plusHours(1));
         usuarioRepository.save(usuario);
 
-        // Envia o código por e-mail via Resend
+        // Envia o código por e-mail via Brevo
         enviarEmailCodigo(usuario.getEmail(), usuario.getNome(), codigo);
 
         log.info("Código de recuperação enviado para: {}", usuario.getEmail());
@@ -253,27 +249,27 @@ public class UsuarioService implements UsuarioIService {
     }
 
     /**
-     * Envia o e-mail com o código de recuperação usando a API HTTP do Resend.
+     * Envia o e-mail com o código de recuperação usando a API HTTP do Brevo.
      * Não depende de porta SMTP — usa HTTPS, que sempre está liberado.
+     * Funciona para qualquer destinatário sem precisar de domínio verificado.
      *
-     * Documentação: https://resend.com/docs/api-reference/emails/send-email
      */
     private void enviarEmailCodigo(String destinatario, String nome, String codigo) {
         try {
-            // Monta o JSON do corpo da requisição
+            // Monta o JSON do corpo da requisição no formato que o Brevo espera
             String corpo = String.format("""
                 {
-                    "from": "%s",
-                    "to": ["%s"],
+                    "sender": { "name": "Horizonte Meu", "email": "horizontemeu.adm@gmail.com" },
+                    "to": [{ "email": "%s", "name": "%s" }],
                     "subject": "Horizonte Meu — Código de recuperação de senha",
-                    "text": "Olá, %s!\\n\\nSeu código de verificação é: %s\\n\\nEste código é válido por 1 hora.\\n\\nEquipe Horizonte Meu"
+                    "textContent": "Olá, %s!\\n\\nSeu código de verificação é: %s\\n\\nEste código é válido por 1 hora.\\n\\nEquipe Horizonte Meu"
                 }
-                """, resendFromEmail, destinatario, nome, codigo);
+                """, destinatario, nome, nome, codigo);
 
-            // Faz a requisição HTTP para a API do Resend
+            // Faz a requisição HTTP para a API do Brevo
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.resend.com/emails"))
-                    .header("Authorization", "Bearer " + resendApiKey)
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .header("api-key", brevoApiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(corpo))
                     .build();
@@ -282,14 +278,15 @@ public class UsuarioService implements UsuarioIService {
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("E-mail enviado com sucesso via Resend para: {}", destinatario);
+                log.info("E-mail enviado com sucesso via Brevo para: {}", destinatario);
             } else {
-                log.error("Resend retornou erro {}: {}", response.statusCode(), response.body());
+                log.error("Brevo retornou erro {}: {}", response.statusCode(), response.body());
             }
 
         } catch (Exception e) {
-            log.error("Erro ao enviar e-mail via Resend para {}: {}", destinatario, e.getMessage());
+            log.error("Erro ao enviar e-mail via Brevo para {}: {}", destinatario, e.getMessage());
             // Não propaga o erro para o front — o usuário não sabe se o e-mail foi enviado
+
         }
     }
 }
