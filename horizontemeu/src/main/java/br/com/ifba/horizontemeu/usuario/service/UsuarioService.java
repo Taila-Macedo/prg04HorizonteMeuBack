@@ -15,11 +15,14 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,10 +31,6 @@ import java.util.Random;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-/**
- * Destino: src/main/java/br/com/ifba/horizontemeu/usuario/service/UsuarioService.java
- * (substitui o arquivo existente)
- */
 @Service
 @RequiredArgsConstructor
 public class UsuarioService implements UsuarioIService {
@@ -39,7 +38,14 @@ public class UsuarioService implements UsuarioIService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder; // injetado do bean em SecurityConfig
     private final JwtUtil jwtUtil;
-    private final JavaMailSender mailSender;
+
+    // Chave da API do Resend — configurada como variável de ambiente no Railway
+    @Value("${resend.api.key}")
+    private String resendApiKey;
+
+    // E-mail remetente — configurado como variável de ambiente no Railway
+    @Value("${resend.from.email}")
+    private String resendFromEmail;
 
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
@@ -192,7 +198,7 @@ public class UsuarioService implements UsuarioIService {
         usuario.setTokenExpiracao(LocalDateTime.now().plusHours(1));
         usuarioRepository.save(usuario);
 
-        // Envia o código por e-mail
+        // Envia o código por e-mail via Resend
         enviarEmailCodigo(usuario.getEmail(), usuario.getNome(), codigo);
 
         log.info("Código de recuperação enviado para: {}", usuario.getEmail());
@@ -247,28 +253,43 @@ public class UsuarioService implements UsuarioIService {
     }
 
     /**
-     * Envia o e-mail com o código de recuperação usando JavaMailSender.
-     * Configurado via variáveis de ambiente no Railway (MAIL_USERNAME e MAIL_PASSWORD).
+     * Envia o e-mail com o código de recuperação usando a API HTTP do Resend.
+     * Não depende de porta SMTP — usa HTTPS, que sempre está liberado.
+     *
+     * Documentação: https://resend.com/docs/api-reference/emails/send-email
      */
     private void enviarEmailCodigo(String destinatario, String nome, String codigo) {
         try {
-            SimpleMailMessage mensagem = new SimpleMailMessage();
-            mensagem.setTo(destinatario);
-            mensagem.setSubject("Horizonte Meu — Código de recuperação de senha");
-            mensagem.setText(
-                    "Olá, " + nome + "!\n\n" +
-                            "Recebemos uma solicitação para redefinir a senha da sua conta no Horizonte Meu.\n\n" +
-                            "Seu código de verificação é:\n\n" +
-                            "    " + codigo + "\n\n" +
-                            "Este código é válido por 1 hora.\n\n" +
-                            "Se você não solicitou a redefinição de senha, ignore este e-mail.\n\n" +
-                            "Equipe Horizonte Meu"
-            );
-            mailSender.send(mensagem);
+            // Monta o JSON do corpo da requisição
+            String corpo = String.format("""
+                {
+                    "from": "%s",
+                    "to": ["%s"],
+                    "subject": "Horizonte Meu — Código de recuperação de senha",
+                    "text": "Olá, %s!\\n\\nSeu código de verificação é: %s\\n\\nEste código é válido por 1 hora.\\n\\nEquipe Horizonte Meu"
+                }
+                """, resendFromEmail, destinatario, nome, codigo);
+
+            // Faz a requisição HTTP para a API do Resend
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(corpo))
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("E-mail enviado com sucesso via Resend para: {}", destinatario);
+            } else {
+                log.error("Resend retornou erro {}: {}", response.statusCode(), response.body());
+            }
+
         } catch (Exception e) {
-            log.error("Erro ao enviar e-mail de recuperação para {}: {}", destinatario, e.getMessage());
+            log.error("Erro ao enviar e-mail via Resend para {}: {}", destinatario, e.getMessage());
             // Não propaga o erro para o front — o usuário não sabe se o e-mail foi enviado
-            // (prevenção de user enumeration). Em produção, use uma fila de mensagens.
         }
     }
 }
