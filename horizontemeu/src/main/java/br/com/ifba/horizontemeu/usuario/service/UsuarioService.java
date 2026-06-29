@@ -4,6 +4,9 @@ import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
 import br.com.ifba.horizontemeu.infrastructure.security.JwtUtil;
 import br.com.ifba.horizontemeu.usuario.dto.LoginRequestDto;
 import br.com.ifba.horizontemeu.usuario.dto.LoginResponseDto;
+import br.com.ifba.horizontemeu.usuario.dto.RedefinirSenhaRequestDto;
+import br.com.ifba.horizontemeu.usuario.dto.SolicitarCodigoRequestDto;
+import br.com.ifba.horizontemeu.usuario.dto.ValidarCodigoRequestDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
 import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
@@ -12,14 +15,23 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+/**
+ * Destino: src/main/java/br/com/ifba/horizontemeu/usuario/service/UsuarioService.java
+ * (substitui o arquivo existente)
+ */
 @Service
 @RequiredArgsConstructor
 public class UsuarioService implements UsuarioIService {
@@ -27,6 +39,8 @@ public class UsuarioService implements UsuarioIService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder; // injetado do bean em SecurityConfig
     private final JwtUtil jwtUtil;
+    private final JavaMailSender mailSender;
+
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
     @Override
@@ -146,5 +160,115 @@ public class UsuarioService implements UsuarioIService {
                 usuario.getEmail(),
                 usuario.getPerfil().name()
         );
+    }
+
+    // ── Recuperação de senha (3 etapas) ──────────────────────────────────────
+
+    /**
+     * Etapa 1: gera um código numérico de 6 dígitos, salva com expiração de 1 hora
+     * e envia por e-mail.
+     *
+     * Importante: mesmo que o e-mail não exista, retorna sem erro para não revelar
+     * quais e-mails estão cadastrados (user enumeration prevention).
+     */
+    @Transactional
+    @Override
+    public void solicitarCodigoRecuperacao(SolicitarCodigoRequestDto dto) {
+        Optional<Usuario> optional = usuarioRepository.findByEmail(dto.email());
+
+        // Se o e-mail não existe, simplesmente ignoramos (sem erro ao front)
+        if (optional.isEmpty()) {
+            log.info("Solicitação de recuperação para e-mail não cadastrado: {}", dto.email());
+            return;
+        }
+
+        Usuario usuario = optional.get();
+
+        // Gera código de 6 dígitos (000000 a 999999)
+        String codigo = String.format("%06d", new Random().nextInt(1_000_000));
+
+        // Salva o código e define expiração em 1 hora a partir de agora
+        usuario.setTokenResetSenha(codigo);
+        usuario.setTokenExpiracao(LocalDateTime.now().plusHours(1));
+        usuarioRepository.save(usuario);
+
+        // Envia o código por e-mail
+        enviarEmailCodigo(usuario.getEmail(), usuario.getNome(), codigo);
+
+        log.info("Código de recuperação enviado para: {}", usuario.getEmail());
+    }
+
+    /**
+     * Etapa 2: valida se o código é correto e ainda não expirou.
+     * Não altera a senha — apenas confirma que o código é válido.
+     */
+    @Override
+    public void validarCodigo(ValidarCodigoRequestDto dto) {
+        Usuario usuario = usuarioRepository.findByEmail(dto.email())
+                .orElseThrow(() -> new BusinessException("Código inválido ou expirado."));
+
+        validarTokenRecuperacao(usuario, dto.codigo());
+    }
+
+    /**
+     * Etapa 3: valida o código mais uma vez e atualiza a senha.
+     * Após trocar a senha, limpa o token para que não possa ser reutilizado.
+     */
+    @Transactional
+    @Override
+    public void redefinirSenha(RedefinirSenhaRequestDto dto) {
+        Usuario usuario = usuarioRepository.findByEmail(dto.email())
+                .orElseThrow(() -> new BusinessException("Código inválido ou expirado."));
+
+        validarTokenRecuperacao(usuario, dto.codigo());
+
+        // Troca a senha e limpa o token
+        usuario.setSenha(passwordEncoder.encode(dto.novaSenha()));
+        usuario.setTokenResetSenha(null);
+        usuario.setTokenExpiracao(null);
+        usuarioRepository.save(usuario);
+
+        log.info("Senha redefinida com sucesso para: {}", usuario.getEmail());
+    }
+
+    // ── Métodos auxiliares privados ───────────────────────────────────────────
+
+    /**
+     * Verifica se o código bate com o salvo e se ainda não expirou.
+     * Lança BusinessException (HTTP 422) caso falhe.
+     */
+    private void validarTokenRecuperacao(Usuario usuario, String codigoInformado) {
+        if (usuario.getTokenResetSenha() == null
+                || usuario.getTokenExpiracao() == null
+                || !usuario.getTokenResetSenha().equals(codigoInformado)
+                || LocalDateTime.now().isAfter(usuario.getTokenExpiracao())) {
+            throw new BusinessException("Código inválido ou expirado.");
+        }
+    }
+
+    /**
+     * Envia o e-mail com o código de recuperação usando JavaMailSender.
+     * Configurado via variáveis de ambiente no Railway (MAIL_USERNAME e MAIL_PASSWORD).
+     */
+    private void enviarEmailCodigo(String destinatario, String nome, String codigo) {
+        try {
+            SimpleMailMessage mensagem = new SimpleMailMessage();
+            mensagem.setTo(destinatario);
+            mensagem.setSubject("Horizonte Meu — Código de recuperação de senha");
+            mensagem.setText(
+                    "Olá, " + nome + "!\n\n" +
+                            "Recebemos uma solicitação para redefinir a senha da sua conta no Horizonte Meu.\n\n" +
+                            "Seu código de verificação é:\n\n" +
+                            "    " + codigo + "\n\n" +
+                            "Este código é válido por 1 hora.\n\n" +
+                            "Se você não solicitou a redefinição de senha, ignore este e-mail.\n\n" +
+                            "Equipe Horizonte Meu"
+            );
+            mailSender.send(mensagem);
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail de recuperação para {}: {}", destinatario, e.getMessage());
+            // Não propaga o erro para o front — o usuário não sabe se o e-mail foi enviado
+            // (prevenção de user enumeration). Em produção, use uma fila de mensagens.
+        }
     }
 }

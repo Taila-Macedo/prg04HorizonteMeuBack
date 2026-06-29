@@ -47,6 +47,9 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/recuperar-senha/solicitar").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/recuperar-senha/validar").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/recuperar-senha/redefinir").permitAll()
 
                         // Galeria pública
                         .requestMatchers(HttpMethod.GET, "/fotos/ponto/**").permitAll()
