@@ -19,4 +19,6 @@ public interface FotoRepository extends JpaRepository<Foto, Long> {
 
     //busca fotos aprovadas ou pendentes
     List<Foto> findByAprovado(Boolean aprovado);
+
+    List<Foto> findByPontoTuristicoAndAprovado(PontoTuristico pontoTuristico, Boolean aprovado);
 }

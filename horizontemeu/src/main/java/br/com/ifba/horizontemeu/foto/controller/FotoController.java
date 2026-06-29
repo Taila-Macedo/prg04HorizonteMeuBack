@@ -1,13 +1,11 @@
 package br.com.ifba.horizontemeu.foto.controller;
 
 import br.com.ifba.horizontemeu.foto.dto.FotoGetResponseDto;
-import br.com.ifba.horizontemeu.foto.dto.FotoPostRequestDto;
 import br.com.ifba.horizontemeu.foto.entity.Foto;
 import br.com.ifba.horizontemeu.foto.mapper.FotoMapper;
 import br.com.ifba.horizontemeu.foto.service.FotoIService;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -60,15 +58,15 @@ public class FotoController implements FotoIController {
     }
 
     /**
-     * Busca todas as fotos de um ponto turístico.
+     * Busca todas as fotos APROVADAS de um ponto turístico.
      * GET /fotos/ponto/{idPonto}
-     * Requer: público — galeria do ponto é visível para todos
+     * Requer: público — galeria mostra só fotos aprovadas (RN08)
      */
     @Override
     @GetMapping(path = "/ponto/{idPonto}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByPontoTuristico(@PathVariable Long idPonto) {
         return ResponseEntity.ok(
-                fotoMapper.toDtoList(fotoIService.findByPontoTuristico(idPonto)));
+                fotoMapper.toDtoList(fotoIService.findByPontoTuristicoAndAprovado(idPonto, true)));
     }
 
     /**
@@ -138,5 +136,19 @@ public class FotoController implements FotoIController {
     public ResponseEntity<?> delete(@PathVariable Long id) {
         fotoIService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Faz upload de uma foto no Cloudinary e retorna só a URL.
+     * POST /fotos/upload
+     * Usado pelo frontend para anexar foto em comentários sem salvar na galeria.
+     */
+    @PostMapping(path = "/upload",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> uploadAvulso(
+            @RequestParam("arquivo") MultipartFile arquivo) {
+        String url = cloudinaryService.uploadFoto(arquivo);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 }

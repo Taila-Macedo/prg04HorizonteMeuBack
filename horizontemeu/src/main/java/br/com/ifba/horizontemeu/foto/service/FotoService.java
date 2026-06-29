@@ -118,4 +118,11 @@ public class FotoService implements FotoIService{
         fotoRepository.deleteById(id);
     }
 
+    @Override
+    public List<Foto> findByPontoTuristicoAndAprovado(Long idPonto, Boolean aprovado) {
+        PontoTuristico ponto = pontoTuristicoRepository.findById(idPonto)
+                .orElseThrow(() -> new BusinessException("Ponto não encontrado com id: " + idPonto));
+        return fotoRepository.findByPontoTuristicoAndAprovado(ponto, aprovado);
+    }
+
 }

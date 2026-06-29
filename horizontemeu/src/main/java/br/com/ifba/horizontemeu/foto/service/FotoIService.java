@@ -15,4 +15,5 @@ public interface FotoIService {
     Foto save(Foto foto);
     Foto aprovar(Long id);
     void delete(Long id);
+    List<Foto> findByPontoTuristicoAndAprovado(Long idPonto, Boolean aprovado);
 }
