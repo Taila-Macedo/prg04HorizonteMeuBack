@@ -1,11 +1,6 @@
 package br.com.ifba.horizontemeu.usuario.service;
 
-import br.com.ifba.horizontemeu.usuario.dto.LoginRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.LoginResponseDto;
-import br.com.ifba.horizontemeu.usuario.dto.RedefinirSenhaRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.SolicitarCodigoRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.ValidarCodigoRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
+import br.com.ifba.horizontemeu.usuario.dto.*;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +17,7 @@ public interface UsuarioIService {
     Usuario update(Long id, UsuarioPutRequestDto dto);
     void delete(Long id);
     LoginResponseDto login(LoginRequestDto dto);
+    void alterarSenha(Long id, AlterarSenhaRequestDto dto);
 
     // ── Recuperação de senha (3 etapas) ─────────────────────────────────────
 

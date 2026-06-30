@@ -1,6 +1,7 @@
 package br.com.ifba.horizontemeu.usuario.controller;
 
 import br.com.ifba.horizontemeu.infrastructure.mapper.ObjectMapperUtil;
+import br.com.ifba.horizontemeu.usuario.dto.AlterarSenhaRequestDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioGetResponseDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioPostRequestDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
@@ -102,6 +103,8 @@ public class UsuarioController implements UsuarioIController {
                 objectMapperUtil.map(atualizado, UsuarioGetResponseDto.class));
     }
 
+
+
     /**
      * Remove um usuário pelo ID.
      * DELETE /usuarios/{id}
@@ -112,5 +115,19 @@ public class UsuarioController implements UsuarioIController {
     public ResponseEntity<?> delete(@PathVariable Long id) {
         usuarioIService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Altera a senha do usuário autenticado.
+     * PUT /usuarios/{id}/senha
+     * Requer: autenticação
+     */
+    @PutMapping(path = "/{id}/senha",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> alterarSenha(@PathVariable Long id,
+                                          @RequestBody @Valid AlterarSenhaRequestDto dto) {
+        usuarioIService.alterarSenha(id, dto);
+        return ResponseEntity.ok().body(java.util.Map.of("mensagem", "Senha alterada com sucesso."));
     }
 }

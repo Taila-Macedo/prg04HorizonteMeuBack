@@ -2,12 +2,7 @@ package br.com.ifba.horizontemeu.usuario.service;
 
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
 import br.com.ifba.horizontemeu.infrastructure.security.JwtUtil;
-import br.com.ifba.horizontemeu.usuario.dto.LoginRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.LoginResponseDto;
-import br.com.ifba.horizontemeu.usuario.dto.RedefinirSenhaRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.SolicitarCodigoRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.ValidarCodigoRequestDto;
-import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
+import br.com.ifba.horizontemeu.usuario.dto.*;
 import br.com.ifba.horizontemeu.usuario.enums.Perfil;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
 import br.com.ifba.horizontemeu.usuario.repository.UsuarioRepository;
@@ -288,5 +283,20 @@ public class UsuarioService implements UsuarioIService {
             // Não propaga o erro para o front — o usuário não sabe se o e-mail foi enviado
 
         }
+    }
+
+    @Transactional
+    @Override
+    public void alterarSenha(Long id, AlterarSenhaRequestDto dto) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado com id: " + id));
+
+        if (!passwordEncoder.matches(dto.senhaAtual(), usuario.getSenha())) {
+            throw new BusinessException("Senha atual incorreta.");
+        }
+
+        usuario.setSenha(passwordEncoder.encode(dto.novaSenha()));
+        usuarioRepository.save(usuario);
+        log.info("Senha alterada para usuário id: {}", id);
     }
 }

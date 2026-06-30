@@ -1,5 +1,6 @@
 package br.com.ifba.horizontemeu.usuario.controller;
 
+import br.com.ifba.horizontemeu.usuario.dto.AlterarSenhaRequestDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioPostRequestDto;
 import br.com.ifba.horizontemeu.usuario.dto.UsuarioPutRequestDto;
 import org.springframework.http.ResponseEntity;
@@ -13,4 +14,5 @@ public interface UsuarioIController {
     ResponseEntity<?> save(UsuarioPostRequestDto usuarioPostRequestDto);
     ResponseEntity<?> update(Long id, UsuarioPutRequestDto usuarioPutRequestDto);
     ResponseEntity<?> delete(Long id);
+    ResponseEntity<?> alterarSenha(Long id, AlterarSenhaRequestDto dto);
 }
