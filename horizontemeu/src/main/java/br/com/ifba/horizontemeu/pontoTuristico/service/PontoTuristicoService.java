@@ -71,6 +71,7 @@ public class PontoTuristicoService implements PontoTuristicoIService {
         existente.setLatitude(dto.getLatitude());
         existente.setLongitude(dto.getLongitude());
         existente.setCategoria(dto.getCategoria());
+        existente.setNoMapa3D(dto.getNoMapa3D() != null ? dto.getNoMapa3D() : false);
 
         log.info("Atualizando ponto turístico id: {}", id);
         return pontoTuristicoRepository.save(existente);

@@ -47,4 +47,8 @@ public class PontoTuristicoGetResponseDto {
 
     @JsonProperty(value = "categoria")
     private Categoria categoria;
+
+    // NOVO: o front usa isso para decidir quais pontos mostrar no mapa
+    @JsonProperty(value = "noMapa3D")
+    private Boolean noMapa3D;
 }

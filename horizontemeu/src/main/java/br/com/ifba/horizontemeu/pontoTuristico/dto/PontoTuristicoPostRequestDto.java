@@ -47,4 +47,8 @@ public class PontoTuristicoPostRequestDto {
     @JsonProperty(value = "categoria")
     @NotNull(message = "A categoria é obrigatória!")
     private Categoria categoria;
+
+    // NOVO: opcional — se não vier, o service assume false
+    @JsonProperty(value = "noMapa3D")
+    private Boolean noMapa3D;
 }

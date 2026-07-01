@@ -53,4 +53,8 @@ public class PontoTuristicoPutRequestDto {
     @JsonProperty("categoria")
     @NotNull(message = "A categoria é obrigatória!")
     private Categoria categoria;
+
+    // NOVO: permite ligar/desligar o ponto do mapa 3D na edição
+    @JsonProperty("noMapa3D")
+    private Boolean noMapa3D;
 }

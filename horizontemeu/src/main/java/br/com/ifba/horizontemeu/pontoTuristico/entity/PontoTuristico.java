@@ -45,4 +45,9 @@ public class PontoTuristico extends PersistenceEntity {
 
     @Enumerated(EnumType.STRING)
     private Categoria categoria;
+
+    // NOVO: indica se o ponto deve aparecer no mapa 3D da dashboard
+    @Column(name = "no_mapa3d", nullable = false, columnDefinition = "boolean default false")
+    private Boolean noMapa3D;
+
 }
