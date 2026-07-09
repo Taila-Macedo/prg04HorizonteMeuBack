@@ -3,6 +3,8 @@ package br.com.ifba.horizontemeu.foto.service;
 import br.com.ifba.horizontemeu.foto.entity.Foto;
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
 import br.com.ifba.horizontemeu.foto.repository.FotoRepository;
+import br.com.ifba.horizontemeu.notificacao.enums.TipoNotificacao;
+import br.com.ifba.horizontemeu.notificacao.service.NotificacaoIService;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.pontoTuristico.repository.PontoTuristicoRepository;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
@@ -27,6 +29,8 @@ public class FotoService implements FotoIService{
     private final FotoRepository fotoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PontoTuristicoRepository pontoTuristicoRepository;
+    // NOVO — usado para notificar o autor da foto quando ela for aprovada (RN24)
+    private final NotificacaoIService notificacaoIService;
 
     private static final Logger log = LoggerFactory.getLogger(FotoService.class);
 
@@ -103,6 +107,13 @@ public class FotoService implements FotoIService{
         }
 
         foto.setAprovado(true);
+
+        // NOVO — notifica o autor da foto que ela foi aprovada (RN24)
+        notificacaoIService.criar(
+                foto.getUsuario(),
+                "Sua foto foi aprovada!",
+                TipoNotificacao.FOTO_APROVADA
+        );
 
         log.info("Aprovando foto id: {}", id);
         return fotoRepository.save(foto);

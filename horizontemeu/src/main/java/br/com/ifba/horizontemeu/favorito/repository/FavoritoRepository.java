@@ -16,4 +16,7 @@ public interface FavoritoRepository extends JpaRepository<Favorito, Long> {
 
     // Verifica se o usuário já favoritou esse ponto turístico antes — usado para impedir duplicatas (RN03)
     Optional<Favorito> findByUsuarioAndPontoTuristico(Usuario usuario, PontoTuristico ponto);
+
+    //Lista todos que favoritaram um ponto, usado para notificar sobre comentários novos
+    List<Favorito> findByPontoTuristico(PontoTuristico ponto);
 }

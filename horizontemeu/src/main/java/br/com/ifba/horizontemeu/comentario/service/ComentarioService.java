@@ -3,7 +3,11 @@ package br.com.ifba.horizontemeu.comentario.service;
 import br.com.ifba.horizontemeu.comentario.dto.ComentarioPutRequestDto;
 import br.com.ifba.horizontemeu.comentario.entity.Comentario;
 import br.com.ifba.horizontemeu.comentario.repository.ComentarioRepository;
+import br.com.ifba.horizontemeu.favorito.entity.Favorito;
+import br.com.ifba.horizontemeu.favorito.repository.FavoritoRepository;
 import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
+import br.com.ifba.horizontemeu.notificacao.enums.TipoNotificacao;
+import br.com.ifba.horizontemeu.notificacao.service.NotificacaoIService;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.pontoTuristico.repository.PontoTuristicoRepository;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
@@ -27,6 +31,9 @@ public class ComentarioService implements ComentarioIService {
     private final ComentarioRepository comentarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final PontoTuristicoRepository pontoTuristicoRepository;
+    // NOVO — usado para notificar quem favoritou o ponto (RN14) e o autor do comentário (curtida)
+    private final NotificacaoIService notificacaoIService;
+    private final FavoritoRepository favoritoRepository;
 
     private static final Logger log = LoggerFactory.getLogger(ComentarioService.class);
 
@@ -101,6 +108,9 @@ public class ComentarioService implements ComentarioIService {
         // Após salvar, recalcula a nota_media do ponto turístico
         recalcularNotaMedia(ponto);
 
+        // NOVO — notifica todo mundo que favoritou esse ponto sobre o comentário novo (RN14)
+        notificarFavoritosSobreComentario(ponto);
+
         return salvo;
     }
 
@@ -129,6 +139,13 @@ public class ComentarioService implements ComentarioIService {
 
         //Incrementa o contador de curtidas em 1
         comentario.setCurtidas(comentario.getCurtidas() + 1);
+
+        // NOVO — notifica o autor do comentário que ele recebeu uma curtida (RN14)
+        notificacaoIService.criar(
+                comentario.getUsuario(),
+                "Seu comentário recebeu uma nova curtida!",
+                TipoNotificacao.CURTIDA
+        );
 
         log.info("Curtindo comentário id: {} — total de curtidas: {}", id, comentario.getCurtidas());
         return comentarioRepository.save(comentario);
@@ -169,5 +186,20 @@ public class ComentarioService implements ComentarioIService {
         // Salva o ponto turístico com a nova nota_media
         pontoTuristicoRepository.save(ponto);
         log.info("Nota média do ponto {} recalculada para: {}", ponto.getNome(), ponto.getNotaMedia());
+    }
+
+    //Método auxiliar: busca quem favoritou o ponto e cria uma notificação pra cada um (RN14)
+    private void notificarFavoritosSobreComentario(PontoTuristico ponto) {
+        List<Favorito> favoritos = favoritoRepository.findByPontoTuristico(ponto);
+
+        for (Favorito favorito : favoritos) {
+            notificacaoIService.criar(
+                    favorito.getUsuario(),
+                    "Novo comentário em " + ponto.getNome(),
+                    TipoNotificacao.COMENTARIO
+            );
+        }
+
+        log.info("Notificados {} usuários que favoritaram o ponto {}", favoritos.size(), ponto.getNome());
     }
 }

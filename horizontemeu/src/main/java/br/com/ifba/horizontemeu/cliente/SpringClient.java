@@ -25,6 +25,8 @@ public class SpringClient {
     static Long   fotoId       = null;
     static Long   comentarioId = null;
     static Long   favoritoId   = null;
+    static String tokenAdmin   = "";
+    static Long   notificacaoId = null;
 
     public static void main(String[] args) {
         testarModuloUsuario();
@@ -32,6 +34,7 @@ public class SpringClient {
         testarModuloFoto();
         testarModuloComentario();
         testarModuloFavorito();
+        testarModuloNotificacao();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -249,27 +252,33 @@ public class SpringClient {
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 403) {
                 ok("403 FORBIDDEN — correto! Token de USUARIO não pode cadastrar ponto.");
+                buscarPontoExistenteParaTestes();
             } else if (e.getStatusCode().value() == 400 &&
                     e.getResponseBodyAsString().contains("Já existe")) {
                 ok("400 — ponto já existe no banco. Buscando o existente...");
-                try {
-                    String busca = clienteBase.get()
-                            .uri("http://localhost:8080/pontos/buscar?nome=Cristo")
-                            .retrieve()
-                            .bodyToMono(String.class)
-                            .block();
-                    if (busca != null && busca.contains("\"id\":")) {
-                        pontoId = extrairId(busca.replace("[", "").replace("]", ""));
-                        System.out.println("   → ID do ponto recuperado: " + pontoId);
-                    }
-                } catch (WebClientResponseException ex) {
-                    erro(ex);
-                }
+                buscarPontoExistenteParaTestes();
             } else {
                 erro(e);
             }
         }
         System.out.println();
+    }
+
+    // NOVO — método auxiliar usado quando não somos admin, pra reaproveitar um ponto já existente no banco
+    static void buscarPontoExistenteParaTestes() {
+        try {
+            String busca = clienteBase.get()
+                    .uri("http://localhost:8080/pontos/buscar?nome=Cristo")
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            if (busca != null && busca.contains("\"id\":")) {
+                pontoId = extrairId(busca.replace("[", "").replace("]", ""));
+                System.out.println("   → ID do ponto recuperado para uso nos testes: " + pontoId);
+            }
+        } catch (WebClientResponseException ex) {
+            erro(ex);
+        }
     }
 
     static void testarBuscarPontoPorId() {
@@ -391,6 +400,7 @@ public class SpringClient {
         testarBuscarFotosPorPonto();
         testarBuscarFotosPendentesComUsuarioComum();
         testarAprovarFotoComUsuarioComum();
+        testarAprovarFotoComoAdmin();
         testarDeletarFoto();
     }
 
@@ -531,6 +541,44 @@ public class SpringClient {
             } else {
                 erro(e);
             }
+        }
+        System.out.println();
+    }
+
+    static void testarAprovarFotoComoAdmin() {
+        inicio(21, "b) Login ADMIN + PATCH /fotos/aprovar/{id} — deve retornar 200 e disparar notificação");
+        if (fotoId == null) {
+            pulado("nenhuma foto cadastrada ainda");
+            return;
+        }
+        try {
+            String loginBody = """
+                {
+                  "email": "horizontemeu.adm@gmail.com",
+                  "senha": "12345678"
+                }
+                """;
+            String loginResposta = clienteBase.post()
+                    .uri("http://localhost:8080/auth/login")
+                    .bodyValue(loginBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            if (loginResposta != null && loginResposta.contains("\"token\":")) {
+                tokenAdmin = loginResposta.split("\"token\":\"")[1].split("\"")[0];
+            }
+
+            String resposta = clienteBase.patch()
+                    .uri("http://localhost:8080/fotos/aprovar/" + fotoId)
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            ok("200 OK — foto aprovada de verdade. Notificação FOTO_APROVADA deve ter sido criada — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
         }
         System.out.println();
     }
@@ -748,7 +796,6 @@ public class SpringClient {
         testarRemoverFavorito();
     }
 
-    // ── 32. FAVORITAR SEM TOKEN ───────────────────────────────────────────────
     static void testarFavoritarSemToken() {
         inicio(32, "POST /favoritos sem token — deve retornar 403");
         try {
@@ -769,7 +816,6 @@ public class SpringClient {
         System.out.println();
     }
 
-    // ── 33. FAVORITAR COM TOKEN ───────────────────────────────────────────────
     static void testarFavoritar() {
         inicio(33, "POST /favoritos com token — deve retornar 201");
         if (pontoId == null) {
@@ -793,7 +839,6 @@ public class SpringClient {
         System.out.println();
     }
 
-    // ── 34. FAVORITAR DUPLICADO (RN03) ────────────────────────────────────────
     static void testarFavoritarDuplicado() {
         inicio(34, "POST /favoritos duplicado — deve retornar 400 (RN03)");
         if (pontoId == null || favoritoId == null) {
@@ -820,7 +865,6 @@ public class SpringClient {
         System.out.println();
     }
 
-    // ── 35. LISTAR FAVORITOS POR USUÁRIO ─────────────────────────────────────
     static void testarListarFavoritosPorUsuario() {
         inicio(35, "GET /favoritos/usuario/{idUsuario} — listar favoritos do usuário");
         try {
@@ -837,7 +881,6 @@ public class SpringClient {
         System.out.println();
     }
 
-    // ── 36. REMOVER FAVORITO ──────────────────────────────────────────────────
     static void testarRemoverFavorito() {
         inicio(36, "DELETE /favoritos/{id} — remover favorito");
         if (favoritoId == null) { pulado("nenhum favorito cadastrado ainda"); return; }
@@ -849,6 +892,96 @@ public class SpringClient {
                     .bodyToMono(String.class)
                     .block();
             ok("204 NO CONTENT — favorito removido com sucesso.");
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //   MÓDULO NOTIFICACAO
+    // ══════════════════════════════════════════════════════════════════════════
+
+    static void testarModuloNotificacao() {
+        cabecalho("NOTIFICACAO");
+        testarPublicarSegundoComentarioParaNotificarFavorito();
+        testarListarNotificacoes();
+        testarMarcarNotificacaoComoLida();
+        testarDeletarNotificacao();
+    }
+
+    static void testarPublicarSegundoComentarioParaNotificarFavorito() {
+        inicio(37, "POST /comentarios (2º comentário) — deve notificar quem favoritou o ponto");
+        if (pontoId == null) { pulado("nenhum ponto cadastrado ainda"); return; }
+        try {
+            String body = String.format("""
+                {
+                  "texto": "Voltei aqui e continua incrível!",
+                  "nota": 5,
+                  "idUsuario": %d,
+                  "idPontoTuristico": %d
+                }
+                """, usuarioId, pontoId);
+            String resposta = clienteBase.post()
+                    .uri("http://localhost:8080/comentarios")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("201 CREATED — comentário publicado. Notificação COMENTARIO deve ter sido criada — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarListarNotificacoes() {
+        inicio(38, "GET /notificacoes/usuario/{idUsuario} — listar notificações do usuário");
+        try {
+            String resposta = clienteBase.get()
+                    .uri("http://localhost:8080/notificacoes/usuario/" + usuarioId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — " + resposta);
+            notificacaoId = extrairId(resposta);
+            System.out.println("   → ID da primeira notificação salvo: " + notificacaoId);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarMarcarNotificacaoComoLida() {
+        inicio(39, "PATCH /notificacoes/{id}/lida — marcar como lida");
+        if (notificacaoId == null) { pulado("nenhuma notificação encontrada ainda"); return; }
+        try {
+            clienteBase.patch()
+                    .uri("http://localhost:8080/notificacoes/" + notificacaoId + "/lida")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("204 NO CONTENT — notificação marcada como lida.");
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarDeletarNotificacao() {
+        inicio(40, "DELETE /notificacoes/{id} — remover notificação");
+        if (notificacaoId == null) { pulado("nenhuma notificação encontrada ainda"); return; }
+        try {
+            clienteBase.delete()
+                    .uri("http://localhost:8080/notificacoes/" + notificacaoId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("204 NO CONTENT — notificação removida com sucesso.");
         } catch (WebClientResponseException e) {
             erro(e);
         }
