@@ -14,7 +14,7 @@ public interface UsuarioIService {
     Optional<Usuario> findById(Long id);
     List<Usuario> findByNome(String nome);
     Usuario save(Usuario usuario);
-    Usuario update(Long id, UsuarioPutRequestDto dto);
+    Usuario update(Long id, Usuario usuario);
     void delete(Long id);
     LoginResponseDto login(LoginRequestDto dto);
     void alterarSenha(Long id, AlterarSenhaRequestDto dto);

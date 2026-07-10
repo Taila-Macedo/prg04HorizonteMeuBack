@@ -93,14 +93,14 @@ public class UsuarioService implements UsuarioIService {
 
     @Transactional
     @Override
-    public Usuario update(Long id, UsuarioPutRequestDto dto) {
+    public Usuario update(Long id, Usuario usuario) {
         Usuario existente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Usuário não encontrado com id: " + id));
 
-        // Atualiza APENAS nome e foto — email e senha têm fluxos próprios
-        existente.setNome(dto.getNome());
-        existente.setFotoPerfil(dto.getFotoPerfil());
-        existente.setBio(dto.getBio());
+        // ALTERADO: antes lia "dto.getNome()" etc. — agora lê do objeto "usuario" (entidade) recebido
+        existente.setNome(usuario.getNome());
+        existente.setFotoPerfil(usuario.getFotoPerfil());
+        existente.setBio(usuario.getBio());
 
         log.info("Atualizando usuário id: {}", id);
         return usuarioRepository.save(existente);

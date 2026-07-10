@@ -12,10 +12,9 @@ public interface PontoTuristicoIService {
     Page<PontoTuristico> findAll(Pageable pageable);
     Optional<PontoTuristico> findById(Long id);
     PontoTuristico save(PontoTuristico ponto);
-    // Recebe o DTO de update diretamente — evita sobrescrever notaMedia
-    PontoTuristico update(Long id, PontoTuristicoPutRequestDto dto);
+    // ALTERADO: antes era update(Long id, PontoTuristicoPutRequestDto dto)
+    PontoTuristico update(Long id, PontoTuristico ponto);
     void delete(long id);
     List<PontoTuristico> findByNome(String nome);
     List<PontoTuristico> findByPais(String pais);
-
 }

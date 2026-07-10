@@ -58,20 +58,19 @@ public class PontoTuristicoService implements PontoTuristicoIService {
 
     @Transactional
     @Override
-    public PontoTuristico update(Long id, PontoTuristicoPutRequestDto dto) {
+    public PontoTuristico update(Long id, PontoTuristico ponto) {
         PontoTuristico existente = pontoTuristicoRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Ponto turístico não encontrado com id: " + id));
 
-        // Atualiza todos os campos editáveis
-        // notaMedia NÃO é atualizada aqui — é recalculada automaticamente (RN04)
-        existente.setNome(dto.getNome());
-        existente.setDescricao(dto.getDescricao());
-        existente.setCidade(dto.getCidade());
-        existente.setPais(dto.getPais());
-        existente.setLatitude(dto.getLatitude());
-        existente.setLongitude(dto.getLongitude());
-        existente.setCategoria(dto.getCategoria());
-        existente.setNoMapa3D(dto.getNoMapa3D() != null ? dto.getNoMapa3D() : false);
+        // ALTERADO: antes lia "dto.getNome()" etc. — agora lê do objeto "ponto" (entidade) recebido
+        existente.setNome(ponto.getNome());
+        existente.setDescricao(ponto.getDescricao());
+        existente.setCidade(ponto.getCidade());
+        existente.setPais(ponto.getPais());
+        existente.setLatitude(ponto.getLatitude());
+        existente.setLongitude(ponto.getLongitude());
+        existente.setCategoria(ponto.getCategoria());
+        existente.setNoMapa3D(ponto.getNoMapa3D() != null ? ponto.getNoMapa3D() : false);
 
         log.info("Atualizando ponto turístico id: {}", id);
         return pontoTuristicoRepository.save(existente);

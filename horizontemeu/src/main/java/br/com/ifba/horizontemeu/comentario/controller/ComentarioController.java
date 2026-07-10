@@ -124,8 +124,15 @@ public class ComentarioController implements ComentarioIController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> update(@PathVariable Long id,
                                     @RequestBody @Valid ComentarioPutRequestDto dto) {
-        // Passa o DTO diretamente — service garante que só texto e fotoUrl mudam
-        Comentario atualizado = comentarioIService.update(id, dto);
+
+         // Não existe um ComentarioMapper.toEntity() pronto pro DTO de update,
+        // então montei a entidade manualmente aqui, só com os campos editáveis
+        Comentario comentario = new Comentario();
+        comentario.setTexto(dto.getTexto());
+        comentario.setFotoUrl(dto.getFotoUrl());
+
+        // service garante que só texto e fotoUrl mudam (nota é imutável)
+        Comentario atualizado = comentarioIService.update(id, comentario);
         return ResponseEntity.ok(comentarioMapper.toDto(atualizado));
     }
 

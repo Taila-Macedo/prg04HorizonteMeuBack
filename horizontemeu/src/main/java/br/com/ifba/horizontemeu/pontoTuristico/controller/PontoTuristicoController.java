@@ -105,9 +105,10 @@ public class PontoTuristicoController implements PontoTuristicoIController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> update(@PathVariable Long id,
                                     @RequestBody @Valid PontoTuristicoPutRequestDto dto) {
-        // Passa o DTO diretamente para o service
-        // para garantir que notaMedia não seja sobrescrita
-        PontoTuristico atualizado = pontoTuristicoIService.update(id, dto);
+        // ALTERADO: antes chamava pontoTuristicoIService.update(id, dto) direto.
+        // Agora converte pra entidade PontoTuristico primeiro, com o ObjectMapperUtil
+        PontoTuristico atualizado = pontoTuristicoIService.update(id,
+                objectMapperUtil.map(dto, PontoTuristico.class));
         return ResponseEntity.ok(
                 objectMapperUtil.map(atualizado, PontoTuristicoGetResponseDto.class));
     }

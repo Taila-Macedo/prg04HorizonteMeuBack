@@ -14,7 +14,7 @@ public interface ComentarioIService {
     List<Comentario> findByPontoTuristico(Long idPonto);
     List<Comentario> findByUsuario(Long idUsuario);
     Comentario save(Comentario comentario);
-    Comentario update(Long id, ComentarioPutRequestDto dto);
+    Comentario update(Long id, Comentario comentario);
     Comentario curtir(Long id);
     void delete(Long id);
 }

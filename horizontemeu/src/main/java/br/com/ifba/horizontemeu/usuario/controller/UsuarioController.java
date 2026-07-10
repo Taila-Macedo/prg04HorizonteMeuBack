@@ -96,9 +96,10 @@ public class UsuarioController implements UsuarioIController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> update(@PathVariable Long id,
                                     @RequestBody @Valid UsuarioPutRequestDto dto) {
-        // Passa o DTO diretamente para o service — não converte para entidade
-        // para garantir que só nome e fotoPerfil sejam atualizados
-        Usuario atualizado = usuarioIService.update(id, dto);
+        // ALTERADO: antes chamava usuarioIService.update(id, dto) direto.
+        // Agora converte o DTO pra entidade Usuario primeiro, com o ObjectMapperUtil
+        Usuario atualizado = usuarioIService.update(id,
+                objectMapperUtil.map(dto, Usuario.class));
         return ResponseEntity.ok(
                 objectMapperUtil.map(atualizado, UsuarioGetResponseDto.class));
     }

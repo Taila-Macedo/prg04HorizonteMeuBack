@@ -4,11 +4,10 @@ import br.com.ifba.horizontemeu.infrastructure.exception.BusinessException;
 import br.com.ifba.horizontemeu.pontoTuristico.entity.PontoTuristico;
 import br.com.ifba.horizontemeu.pontoTuristico.repository.PontoTuristicoRepository;
 import br.com.ifba.horizontemeu.roteiro.dto.RoteiroNoPontoRequestDto;
-import br.com.ifba.horizontemeu.roteiro.dto.RoteiroPostRequestDto;
-import br.com.ifba.horizontemeu.roteiro.dto.RoteiroPutRequestDto;
 import br.com.ifba.horizontemeu.roteiro.entity.Roteiro;
-import br.com.ifba.horizontemeu.roteiro.mapper.RoteiroMapper;
 import br.com.ifba.horizontemeu.roteiro.repository.RoteiroRepository;
+// ALTERADO: removidos os imports de RoteiroPostRequestDto, RoteiroPutRequestDto e RoteiroMapper
+// — o service não converte mais DTO, então não precisa conhecer essas classes
 import br.com.ifba.horizontemeu.roteiroponto.entity.RoteiroNoPonto;
 import br.com.ifba.horizontemeu.roteiroponto.repository.RoteiroNoPontoRepository;
 import br.com.ifba.horizontemeu.usuario.entity.Usuario;
@@ -31,8 +30,7 @@ public class RoteiroService implements RoteiroIService {
     private final UsuarioRepository usuarioRepository;
     private final PontoTuristicoRepository pontoTuristicoRepository;
     private final RoteiroNoPontoRepository roteiroNoPontoRepository;
-
-    private final RoteiroMapper roteiroMapper;
+    // ALTERADO: removido "private final RoteiroMapper roteiroMapper;" — o service não usa mapper
 
     private static final Logger log = LoggerFactory.getLogger(RoteiroService.class);
 
@@ -52,19 +50,17 @@ public class RoteiroService implements RoteiroIService {
 
     @Transactional
     @Override
-    public Roteiro save(RoteiroPostRequestDto dto) {
-        Usuario usuario = usuarioRepository.findById(dto.getIdUsuario())
-                .orElseThrow(() -> new BusinessException("Usuário não encontrado com id: " + dto.getIdUsuario()));
+    public Roteiro save(Roteiro roteiro, Long idUsuario, List<RoteiroNoPontoRequestDto> pontosDto) {
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado com id: " + idUsuario));
 
-        //Converte o DTO para entidade (sem pontos ainda)
-        Roteiro roteiro = roteiroMapper.toEntity(dto);
+        // ALTERADO: removida a linha "Roteiro roteiro = roteiroMapper.toEntity(dto);"
+        // — o roteiro já chega pronto como parâmetro
         roteiro.setUsuario(usuario);
         roteiro.setDataCriacao(LocalDate.now());
 
-        // Monta os RoteiroNoPonto e associa ao Roteiro
-        // O cascade ALL vai salvar os pontos automaticamente junto com o roteiro
-        if (dto.getPontos() != null && !dto.getPontos().isEmpty()) {
-            List<RoteiroNoPonto> pontos = montarPontos(dto.getPontos(), roteiro);
+        if (pontosDto != null && !pontosDto.isEmpty()) {
+            List<RoteiroNoPonto> pontos = montarPontos(pontosDto, roteiro);
             roteiro.getPontos().addAll(pontos);
         }
 
@@ -74,26 +70,24 @@ public class RoteiroService implements RoteiroIService {
 
     @Transactional
     @Override
-    public Roteiro update(Long id, RoteiroPutRequestDto dto) {
-        Roteiro roteiro = roteiroRepository.findById(id)
+    public Roteiro update(Long id, Roteiro roteiro, List<RoteiroNoPontoRequestDto> pontosDto) {
+        Roteiro existente = roteiroRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Roteiro não encontrado com id: " + id));
 
-        // Atualiza campos editáveis — idUsuario e dataCriacao nunca mudam
-        roteiro.setTitulo(dto.getTitulo());
-        roteiro.setDescricao(dto.getDescricao());
-        roteiro.setDataViagem(dto.getDataViagem());
-        roteiro.setPublico(dto.getPublico() != null ? dto.getPublico() : false);
+        // ALTERADO: antes lia "dto.getTitulo()" etc. — agora lê do objeto "roteiro" (entidade) recebido
+        existente.setTitulo(roteiro.getTitulo());
+        existente.setDescricao(roteiro.getDescricao());
+        existente.setDataViagem(roteiro.getDataViagem());
+        existente.setPublico(roteiro.getPublico() != null ? roteiro.getPublico() : false);
 
-        // Substitui a lista de pontos por completo
-        // CascadeType.ALL + orphanRemoval deletam os antigos automaticamente
-        roteiro.getPontos().clear();
-        if (dto.getPontos() != null && !dto.getPontos().isEmpty()) {
-            List<RoteiroNoPonto> novosPontos = montarPontos(dto.getPontos(), roteiro);
-            roteiro.getPontos().addAll(novosPontos);
+        existente.getPontos().clear();
+        if (pontosDto != null && !pontosDto.isEmpty()) {
+            List<RoteiroNoPonto> novosPontos = montarPontos(pontosDto, existente);
+            existente.getPontos().addAll(novosPontos);
         }
 
         log.info("Atualizando roteiro id: {}", id);
-        return roteiroRepository.save(roteiro);
+        return roteiroRepository.save(existente);
     }
 
 
@@ -103,23 +97,19 @@ public class RoteiroService implements RoteiroIService {
         if (!roteiroRepository.existsById(id)) {
             throw new BusinessException("Roteiro não encontrado com id: " + id);
         }
-        // O cascade ALL + orphanRemoval deleta os RoteiroNoPonto junto
         log.info("Removendo roteiro id: {}", id);
         roteiroRepository.deleteById(id);
     }
 
-    // Método auxiliar: monta a lista de RoteiroNoPonto a partir dos DTOs
     private List<RoteiroNoPonto> montarPontos(List<RoteiroNoPontoRequestDto> dtos, Roteiro roteiro) {
-
         List<RoteiroNoPonto> pontos = new ArrayList<>();
-
         for (RoteiroNoPontoRequestDto pontoDto : dtos) {
             PontoTuristico ponto = pontoTuristicoRepository.findById(pontoDto.getIdPontoTuristico())
                     .orElseThrow(() -> new BusinessException(
                             "Ponto turístico não encontrado com id: " + pontoDto.getIdPontoTuristico()));
 
             RoteiroNoPonto roteiroNoPonto = new RoteiroNoPonto();
-            roteiroNoPonto.setRoteiro(roteiro);       // associa de volta ao pai
+            roteiroNoPonto.setRoteiro(roteiro);
             roteiroNoPonto.setPontoTuristico(ponto);
             roteiroNoPonto.setOrdem(pontoDto.getOrdem());
             roteiroNoPonto.setVisitado(false);
@@ -134,7 +124,6 @@ public class RoteiroService implements RoteiroIService {
         RoteiroNoPonto vinculo = roteiroNoPontoRepository.findById(idRoteiroPonto)
                 .orElseThrow(() -> new BusinessException("Vínculo de roteiro e ponto não encontrado com id: " + idRoteiroPonto));
 
-        // Atualiza apenas o status do checklist
         vinculo.setVisitado(visitado != null ? visitado : false);
 
         log.info("Ponto turístico do vínculo id {} marcado como visitado: {}", idRoteiroPonto, vinculo.getVisitado());
@@ -147,7 +136,6 @@ public class RoteiroService implements RoteiroIService {
         Roteiro roteiro = roteiroRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Roteiro não encontrado com id: " + id));
 
-        // Seta publico = true — a partir daqui o roteiro é acessível por link sem autenticação (RN16)
         roteiro.setPublico(true);
 
         log.info("Roteiro id {} compartilhado publicamente.", id);

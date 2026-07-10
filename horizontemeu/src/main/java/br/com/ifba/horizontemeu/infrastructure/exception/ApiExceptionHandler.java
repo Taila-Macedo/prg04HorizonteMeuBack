@@ -1,5 +1,7 @@
 package br.com.ifba.horizontemeu.infrastructure.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,31 +15,28 @@ import java.util.List;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    // Captura especificamente a BusinessException
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
-                null,  // fields
-                null   // fieldsMessage
+                null, null
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    // ✅ NOVO — captura falhas do @Valid nos DTOs
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex) {
 
         List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors();
 
-        // "nome, email, senha"
         String fields = fieldErrors.stream()
                 .map(FieldError::getField)
                 .collect(Collectors.joining(", "));
 
-        // "O nome é obrigatório!, E-mail inválido!, A senha é obrigatória!"
         String fieldsMessage = fieldErrors.stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
@@ -52,14 +51,14 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    // Captura qualquer outra exceção não tratada
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Erro interno não tratado: ", ex);
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Erro interno no servidor.",
-                null,  // fields
-                null   // fieldsMessage
+                null, null
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }

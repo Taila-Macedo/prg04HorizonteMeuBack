@@ -2,6 +2,7 @@ package br.com.ifba.horizontemeu.roteiro.mapper;
 
 import br.com.ifba.horizontemeu.roteiro.dto.RoteiroGetResponseDto;
 import br.com.ifba.horizontemeu.roteiro.dto.RoteiroPostRequestDto;
+import br.com.ifba.horizontemeu.roteiro.dto.RoteiroPutRequestDto; // ALTERADO: import novo
 import br.com.ifba.horizontemeu.roteiro.entity.Roteiro;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -27,8 +28,14 @@ public interface RoteiroMapper {
 
     List<RoteiroGetResponseDto> toGetResponseDtoList(List<Roteiro> roteiros);
 
-    // Pontos e id são montados manualmente no service — ignorados aqui
     @Mapping(target = "pontos", ignore = true)
     @Mapping(target = "id", ignore = true)
     Roteiro toEntity(RoteiroPostRequestDto dto);
+
+    // ALTERADO: método novo — antes só existia toEntity(RoteiroPostRequestDto).
+    // Como agora o controller (não mais o service) converte o DTO de UPDATE também,
+    // precisei de um overload pro RoteiroPutRequestDto.
+    @Mapping(target = "pontos", ignore = true)
+    @Mapping(target = "id", ignore = true)
+    Roteiro toEntity(RoteiroPutRequestDto dto);
 }

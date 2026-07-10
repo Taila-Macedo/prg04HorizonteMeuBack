@@ -116,15 +116,14 @@ public class ComentarioService implements ComentarioIService {
 
     @Transactional
     @Override
-    public Comentario update(Long id, ComentarioPutRequestDto dto) {
+    public Comentario update(Long id, Comentario comentario) {
         Comentario existente = comentarioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Comentário não encontrado com id: " + id));
 
-        // Atualiza só texto e fotoUrl — nota é imutável, usuário e ponto não mudam
-        existente.setTexto(dto.getTexto());
-        existente.setFotoUrl(dto.getFotoUrl());
+        // ALTERADO: antes lia "dto.getTexto()" etc. — agora lê do objeto "comentario" (entidade) recebido
+        existente.setTexto(comentario.getTexto());
+        existente.setFotoUrl(comentario.getFotoUrl());
 
-        // Marca que o comentário foi editado após a publicação
         existente.setEditado(true);
 
         log.info("Atualizando comentário id: {}", id);
