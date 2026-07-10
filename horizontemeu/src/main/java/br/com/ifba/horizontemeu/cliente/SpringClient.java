@@ -27,6 +27,11 @@ public class SpringClient {
     static Long   favoritoId   = null;
     static String tokenAdmin   = "";
     static Long   notificacaoId = null;
+    static Long denunciaId                      = null;
+    static Long denunciaResolverSimplesId       = null;
+    static Long denunciaParaRejeitarId          = null;
+    static Long comentarioDenunciadoId          = null;
+    static Long comentarioParaResolverSimplesId = null;
 
     public static void main(String[] args) {
         testarModuloUsuario();
@@ -35,6 +40,7 @@ public class SpringClient {
         testarModuloComentario();
         testarModuloFavorito();
         testarModuloNotificacao();
+        testarModuloDenuncia();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -989,6 +995,448 @@ public class SpringClient {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
+    //   MÓDULO DENUNCIA
+    // ══════════════════════════════════════════════════════════════════════════
+
+    static void testarModuloDenuncia() {
+        cabecalho("DENUNCIA");
+        testarCriarComentariosParaDenuncia();
+        testarDenunciarSemToken();
+        testarDenunciarComDoisAlvos();
+        testarDenunciarSemAlvo();
+        testarDenunciarComentario();
+        testarDenunciarComentarioParaResolverSimples();
+        testarBuscarDenunciaPorId();
+        testarListarDenunciasComoAdmin();
+        testarListarDenunciasPorUsuario();
+        testarListarDenunciasPorStatus();
+        testarResolverComUsuarioComum();
+        testarResolverSimplesComoAdmin();
+        testarResolverDenunciaJaResolvida();
+        testarResolverExcluindoConteudoComoAdmin();
+        testarConfirmarComentarioExcluido();
+        testarConfirmarNotificacaoConteudoRemovido();
+        testarDenunciarParaRejeitar();
+        testarRejeitarDenunciaComoAdmin();
+        testarDeletarDenunciaComoAdmin();
+    }
+
+    // Cria 2 comentários novos exclusivos pra esse módulo — os outros (comentarioId)
+    // já foram excluídos lá no módulo COMENTÁRIO.
+    static void testarCriarComentariosParaDenuncia() {
+        inicio(41, "POST /comentarios — criar 2 comentários de teste para o módulo de denúncias");
+        if (pontoId == null) { pulado("nenhum ponto cadastrado ainda"); return; }
+        try {
+            String body1 = String.format("""
+                {
+                  "texto": "Comentário ofensivo de teste — será excluído ao resolver a denúncia.",
+                  "nota": 1,
+                  "idUsuario": %d,
+                  "idPontoTuristico": %d
+                }
+                """, usuarioId, pontoId);
+            String resposta1 = clienteBase.post()
+                    .uri("http://localhost:8080/comentarios")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(body1)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            comentarioDenunciadoId = extrairId(resposta1);
+            ok("Comentário 1 criado (será excluído) — id: " + comentarioDenunciadoId);
+
+            String body2 = String.format("""
+                {
+                  "texto": "Comentário de teste — será mantido, denúncia só marcada como resolvida.",
+                  "nota": 2,
+                  "idUsuario": %d,
+                  "idPontoTuristico": %d
+                }
+                """, usuarioId, pontoId);
+            String resposta2 = clienteBase.post()
+                    .uri("http://localhost:8080/comentarios")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(body2)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            comentarioParaResolverSimplesId = extrairId(resposta2);
+            ok("Comentário 2 criado (será mantido) — id: " + comentarioParaResolverSimplesId);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarDenunciarSemToken() {
+        inicio(42, "POST /denuncias sem token — deve retornar 403");
+        try {
+            clienteBase.post()
+                    .uri("http://localhost:8080/denuncias")
+                    .bodyValue(bodyDenunciaComentario(comentarioDenunciadoId))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  201 CREATED — denunciou sem token? Verifique o SecurityConfig!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 403) {
+                ok("403 FORBIDDEN — correto! Sem token não denuncia.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarDenunciarComDoisAlvos() {
+        inicio(43, "POST /denuncias com idFoto E idComentario preenchidos — deve retornar 400 (RN05)");
+        if (comentarioDenunciadoId == null) { pulado("nenhum comentário de teste criado"); return; }
+        try {
+            String body = String.format("""
+                {
+                  "motivo": "teste RN05 — dois alvos",
+                  "idUsuario": %d,
+                  "idFoto": 1,
+                  "idComentario": %d
+                }
+                """, usuarioId, comentarioDenunciadoId);
+            clienteBase.post()
+                    .uri("http://localhost:8080/denuncias")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  201 CREATED — permitiu dois alvos? Verifique a RN05!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 400 &&
+                    e.getResponseBodyAsString().contains("só pode ter um alvo")) {
+                ok("400 — correto! RN05 bloqueou denúncia com mais de um alvo.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarDenunciarSemAlvo() {
+        inicio(44, "POST /denuncias sem nenhum alvo preenchido — deve retornar 400 (RN05)");
+        try {
+            String body = String.format("""
+                {
+                  "motivo": "teste RN05 — nenhum alvo",
+                  "idUsuario": %d
+                }
+                """, usuarioId);
+            clienteBase.post()
+                    .uri("http://localhost:8080/denuncias")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  201 CREATED — permitiu denúncia sem alvo? Verifique a RN05!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 400 &&
+                    e.getResponseBodyAsString().contains("precisa indicar um alvo")) {
+                ok("400 — correto! RN05 bloqueou denúncia sem nenhum alvo.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarDenunciarComentario() {
+        inicio(45, "POST /denuncias — denunciar o comentário 1 (será excluído depois) — deve retornar 201");
+        if (comentarioDenunciadoId == null) { pulado("nenhum comentário de teste criado"); return; }
+        try {
+            String resposta = clienteBase.post()
+                    .uri("http://localhost:8080/denuncias")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(bodyDenunciaComentario(comentarioDenunciadoId))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("201 CREATED — " + resposta);
+            denunciaId = extrairId(resposta);
+            System.out.println("   → ID da denúncia salvo: " + denunciaId);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarDenunciarComentarioParaResolverSimples() {
+        inicio(46, "POST /denuncias — denunciar o comentário 2 (será mantido) — deve retornar 201");
+        if (comentarioParaResolverSimplesId == null) { pulado("nenhum comentário de teste criado"); return; }
+        try {
+            String resposta = clienteBase.post()
+                    .uri("http://localhost:8080/denuncias")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(bodyDenunciaComentario(comentarioParaResolverSimplesId))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("201 CREATED — " + resposta);
+            denunciaResolverSimplesId = extrairId(resposta);
+            System.out.println("   → ID da 2ª denúncia salvo: " + denunciaResolverSimplesId);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarBuscarDenunciaPorId() {
+        inicio(47, "GET /denuncias/{id} com USUARIO comum — deve retornar 403 (rota é de ADMIN)");
+        if (denunciaId == null) { pulado("nenhuma denúncia cadastrada ainda"); return; }
+        try {
+            clienteBase.get()
+                    .uri("http://localhost:8080/denuncias/" + denunciaId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  200 OK — usuário comum viu a denúncia? Confira o SecurityConfig!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 403) {
+                ok("403 FORBIDDEN — correto! Só ADMIN vê denúncia por ID.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarListarDenunciasComoAdmin() {
+        inicio(48, "GET /denuncias?page=0&size=5 com ADMIN — deve retornar 200");
+        garantirLoginAdmin();
+        try {
+            String resposta = clienteBase.get()
+                    .uri("http://localhost:8080/denuncias?page=0&size=5")
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarListarDenunciasPorUsuario() {
+        inicio(49, "GET /denuncias/usuario/{idUsuario} — listar denúncias feitas pelo usuário");
+        try {
+            String resposta = clienteBase.get()
+                    .uri("http://localhost:8080/denuncias/usuario/" + usuarioId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarListarDenunciasPorStatus() {
+        inicio(50, "GET /denuncias/status/PENDENTE com ADMIN — deve retornar 200");
+        garantirLoginAdmin();
+        try {
+            String resposta = clienteBase.get()
+                    .uri("http://localhost:8080/denuncias/status/PENDENTE?page=0&size=5")
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarResolverComUsuarioComum() {
+        inicio(51, "PATCH /denuncias/{id}/resolver com USUARIO comum — deve retornar 403");
+        if (denunciaResolverSimplesId == null) { pulado("nenhuma denúncia de teste criada"); return; }
+        try {
+            clienteBase.patch()
+                    .uri("http://localhost:8080/denuncias/" + denunciaResolverSimplesId + "/resolver")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  200 OK — usuário comum resolveu denúncia? Confira o SecurityConfig!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 403) {
+                ok("403 FORBIDDEN — correto! Só ADMIN resolve denúncia.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarResolverSimplesComoAdmin() {
+        inicio(52, "PATCH /denuncias/{id}/resolver com ADMIN — deve retornar 200 e MANTER o comentário");
+        garantirLoginAdmin();
+        if (denunciaResolverSimplesId == null) { pulado("nenhuma denúncia de teste criada"); return; }
+        try {
+            String resposta = clienteBase.patch()
+                    .uri("http://localhost:8080/denuncias/" + denunciaResolverSimplesId + "/resolver")
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — status RESOLVIDA, comentário " + comentarioParaResolverSimplesId
+                    + " continua existindo — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarResolverDenunciaJaResolvida() {
+        inicio(53, "PATCH /denuncias/{id}/resolver numa denúncia já resolvida — deve retornar 400");
+        garantirLoginAdmin();
+        if (denunciaResolverSimplesId == null) { pulado("nenhuma denúncia de teste criada"); return; }
+        try {
+            clienteBase.patch()
+                    .uri("http://localhost:8080/denuncias/" + denunciaResolverSimplesId + "/resolver")
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  200 OK — resolveu de novo? Confira a validação de status PENDENTE!");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 400) {
+                ok("400 — correto! Não dá pra resolver uma denúncia que já não está mais PENDENTE.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarResolverExcluindoConteudoComoAdmin() {
+        inicio(54, "PATCH /denuncias/{id}/resolver-excluindo com ADMIN — exclui o comentário e notifica o autor");
+        garantirLoginAdmin();
+        if (denunciaId == null) { pulado("nenhuma denúncia de teste criada"); return; }
+        try {
+            String resposta = clienteBase.patch()
+                    .uri("http://localhost:8080/denuncias/" + denunciaId + "/resolver-excluindo")
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — status RESOLVIDA, comentário " + comentarioDenunciadoId
+                    + " excluído e notificação CONTEUDO_REMOVIDO criada para o autor — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarConfirmarComentarioExcluido() {
+        inicio(55, "GET /comentarios/{id} do comentário excluído — deve retornar 404");
+        if (comentarioDenunciadoId == null) { pulado("nenhum comentário de teste criado"); return; }
+        try {
+            clienteBase.get()
+                    .uri("http://localhost:8080/comentarios/" + comentarioDenunciadoId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            System.out.println("   ⚠️  200 OK — o comentário ainda existe? A exclusão não funcionou.");
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                ok("404 NOT FOUND — correto! O comentário foi realmente excluído pela resolução.");
+            } else {
+                erro(e);
+            }
+        }
+        System.out.println();
+    }
+
+    static void testarConfirmarNotificacaoConteudoRemovido() {
+        inicio(56, "GET /notificacoes/usuario/{idUsuario} — confirmar notificação CONTEUDO_REMOVIDO");
+        try {
+            String resposta = clienteBase.get()
+                    .uri("http://localhost:8080/notificacoes/usuario/" + usuarioId)
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            if (resposta != null && resposta.contains("CONTEUDO_REMOVIDO")) {
+                ok("200 OK — notificação CONTEUDO_REMOVIDO encontrada — " + resposta);
+            } else {
+                System.out.println("   ⚠️  200 OK, mas não encontrei CONTEUDO_REMOVIDO na lista — " + resposta);
+            }
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarDenunciarParaRejeitar() {
+        inicio(57, "POST /denuncias — nova denúncia sobre o comentário mantido, para testar rejeitar()");
+        if (comentarioParaResolverSimplesId == null) { pulado("nenhum comentário de teste criado"); return; }
+        try {
+            String resposta = clienteBase.post()
+                    .uri("http://localhost:8080/denuncias")
+                    .header("Authorization", "Bearer " + tokenJwt)
+                    .bodyValue(bodyDenunciaComentario(comentarioParaResolverSimplesId))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("201 CREATED — " + resposta);
+            denunciaParaRejeitarId = extrairId(resposta);
+            System.out.println("   → ID da denúncia (rejeitar) salvo: " + denunciaParaRejeitarId);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarRejeitarDenunciaComoAdmin() {
+        inicio(58, "PATCH /denuncias/{id}/rejeitar com ADMIN — deve retornar 200, comentário mantido");
+        garantirLoginAdmin();
+        if (denunciaParaRejeitarId == null) { pulado("nenhuma denúncia de teste criada"); return; }
+        try {
+            String resposta = clienteBase.patch()
+                    .uri("http://localhost:8080/denuncias/" + denunciaParaRejeitarId + "/rejeitar")
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("200 OK — status REJEITADA — " + resposta);
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    static void testarDeletarDenunciaComoAdmin() {
+        inicio(59, "DELETE /denuncias/{id} com ADMIN — remover denúncia já tratada");
+        garantirLoginAdmin();
+        if (denunciaResolverSimplesId == null) { pulado("nenhuma denúncia de teste criada"); return; }
+        try {
+            clienteBase.delete()
+                    .uri("http://localhost:8080/denuncias/" + denunciaResolverSimplesId)
+                    .header("Authorization", "Bearer " + tokenAdmin)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            ok("204 NO CONTENT — denúncia removida com sucesso.");
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+        System.out.println();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     //   UTILITÁRIOS
     // ══════════════════════════════════════════════════════════════════════════
 
@@ -1071,5 +1519,39 @@ public class SpringClient {
                 }
                 """, usuarioId != null ? usuarioId : 1L,
                 pontoId  != null ? pontoId  : 1L);
+    }
+
+    static void garantirLoginAdmin() {
+        if (!tokenAdmin.isBlank()) return;
+        try {
+            String loginBody = """
+                {
+                  "email": "horizontemeu.adm@gmail.com",
+                  "senha": "12345678"
+                }
+                """;
+            String loginResposta = clienteBase.post()
+                    .uri("http://localhost:8080/auth/login")
+                    .bodyValue(loginBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            if (loginResposta != null && loginResposta.contains("\"token\":")) {
+                tokenAdmin = loginResposta.split("\"token\":\"")[1].split("\"")[0];
+            }
+        } catch (WebClientResponseException e) {
+            erro(e);
+        }
+    }
+
+    static String bodyDenunciaComentario(Long idComentario) {
+        return String.format("""
+                {
+                  "motivo": "Comentário ofensivo — teste automatizado",
+                  "idUsuario": %d,
+                  "idComentario": %d
+                }
+                """, usuarioId != null ? usuarioId : 1L,
+                idComentario != null ? idComentario : 1L);
     }
 }

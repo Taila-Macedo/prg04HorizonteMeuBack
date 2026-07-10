@@ -67,6 +67,11 @@ public class SecurityConfig {
                         .requestMatchers("/fotos/aprovar/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/fotos/aprovacao").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.DELETE, "/usuarios/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/denuncias").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/denuncias/{id}").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/denuncias/status/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.PATCH, "/denuncias/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.DELETE, "/denuncias/**").hasRole("ADMINISTRADOR")
 
                         // ── QUALQUER OUTRA ROTA: exige autenticação ───────────────────────
                         .anyRequest().authenticated()
