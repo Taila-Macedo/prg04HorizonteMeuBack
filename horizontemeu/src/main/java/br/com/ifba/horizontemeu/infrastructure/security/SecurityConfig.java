@@ -1,9 +1,14 @@
 package br.com.ifba.horizontemeu.infrastructure.security;
 
+import br.com.ifba.horizontemeu.infrastructure.exception.ErrorResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -77,9 +82,35 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
+                // Sem isso, o Spring Security usa o handler padrão (Http403ForbiddenEntryPoint),
+                // que devolve 403 tanto pra "sem token/token expirado" quanto pra "sem permissão".
+                // Isso confunde o frontend, que não consegue diferenciar "faça login de novo"
+                // de "você não tem permissão pra isso". Agora:
+                //   401 → não autenticado (sem token, token expirado ou inválido)
+                //   403 → autenticado, mas sem o perfil/role necessário
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) ->
+                                escreverErro(response, HttpStatus.UNAUTHORIZED,
+                                        "Sessão expirada ou inválida. Faça login novamente."))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                escreverErro(response, HttpStatus.FORBIDDEN,
+                                        "Você não tem permissão para acessar este recurso."))
+                )
+
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // Escreve o corpo de erro no mesmo formato usado pelo ApiExceptionHandler (ErrorResponse),
+    // pra manter a resposta consistente em toda a API.
+    private void escreverErro(HttpServletResponse response, HttpStatus status, String mensagem) throws java.io.IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+
+        ErrorResponse erro = new ErrorResponse(status.value(), mensagem, null, null);
+        new ObjectMapper().writeValue(response.getWriter(), erro);
     }
 
     @Bean
