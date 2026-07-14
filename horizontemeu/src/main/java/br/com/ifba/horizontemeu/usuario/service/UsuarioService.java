@@ -155,7 +155,9 @@ public class UsuarioService implements UsuarioIService {
                 usuario.getId(),
                 usuario.getNome(),
                 usuario.getEmail(),
-                usuario.getPerfil().name()
+                usuario.getPerfil().name(),
+                usuario.getFotoPerfil(),
+                usuario.getBio()
         );
     }
 
