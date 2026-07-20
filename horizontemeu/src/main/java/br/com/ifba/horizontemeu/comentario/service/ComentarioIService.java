@@ -15,6 +15,6 @@ public interface ComentarioIService {
     List<Comentario> findByUsuario(Long idUsuario);
     Comentario save(Comentario comentario);
     Comentario update(Long id, Comentario comentario);
-    Comentario curtir(Long id);
+    Comentario curtir(Long id, Long idUsuario);
     void delete(Long id);
 }

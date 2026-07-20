@@ -13,6 +13,6 @@ public interface ComentarioIController {
     ResponseEntity<?> findByUsuario(Long idUsuario);
     ResponseEntity<?> save(ComentarioPostRequestDto dto);
     ResponseEntity<?> update(Long id, ComentarioPutRequestDto dto);
-    ResponseEntity<?> curtir(Long id);
+    ResponseEntity<?> curtir(Long id, Long idUsuario);
     ResponseEntity<?> delete(Long id);
 }

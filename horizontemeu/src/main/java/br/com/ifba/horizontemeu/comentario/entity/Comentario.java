@@ -36,6 +36,18 @@ public class Comentario extends PersistenceEntity {
     @Column(nullable = false)
     private Integer  curtidas = 0;
 
+    // NOVO (RN21) — guarda o id de cada usuário que já curtiu este
+    // comentário, para impedir que o mesmo usuário curta mais de uma vez.
+    // Não é uma entidade separada: é só uma tabela auxiliar simples
+    // (comentario_curtidas_usuarios) criada automaticamente pelo Hibernate.
+    @ElementCollection
+    @CollectionTable(
+            name = "comentario_curtidas_usuarios",
+            joinColumns = @JoinColumn(name = "comentario_id")
+    )
+    @Column(name = "usuario_id")
+    private java.util.Set<Long> usuariosQueCurtiram = new java.util.HashSet<>();
+
     private LocalDateTime data;
 
     @Column(nullable = false)

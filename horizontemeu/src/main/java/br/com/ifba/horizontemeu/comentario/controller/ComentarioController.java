@@ -125,7 +125,7 @@ public class ComentarioController implements ComentarioIController {
     public ResponseEntity<?> update(@PathVariable Long id,
                                     @RequestBody @Valid ComentarioPutRequestDto dto) {
 
-         // Não existe um ComentarioMapper.toEntity() pronto pro DTO de update,
+        // Não existe um ComentarioMapper.toEntity() pronto pro DTO de update,
         // então montei a entidade manualmente aqui, só com os campos editáveis
         Comentario comentario = new Comentario();
         comentario.setTexto(dto.getTexto());
@@ -137,17 +137,23 @@ public class ComentarioController implements ComentarioIController {
     }
 
     /**
-     * Incrementa o contador de curtidas do comentário em 1.
-     * PATCH /comentarios/{id}/curtir
+     * Curte ou descurte um comentário (toggle).
+     * PATCH /comentarios/{id}/curtir?idUsuario={idUsuario}
      * Requer: autenticação
-     * Atenção: RN21 — curtida única por usuário não está implementada ainda
-     * (precisa de tabela auxiliar CurtidaComentario)
+     * ALTERADO (RN21) — agora recebe o idUsuario e impede curtidas duplicadas:
+     * se o usuário ainda não curtiu, registra a curtida (+1); se já tinha
+     * curtido, remove a curtida (-1). A resposta traz o campo "curtido"
+     * indicando o novo estado para aquele usuário.
      */
     @Override
     @PatchMapping(path = "/{id}/curtir", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> curtir(@PathVariable Long id) {
-        return ResponseEntity.ok(
-                comentarioMapper.toDto(comentarioIService.curtir(id)));
+    public ResponseEntity<?> curtir(@PathVariable Long id, @RequestParam Long idUsuario) {
+        Comentario comentario = comentarioIService.curtir(id, idUsuario);
+
+        ComentarioGetResponseDto dto = comentarioMapper.toDto(comentario);
+        dto.setCurtido(comentario.getUsuariosQueCurtiram().contains(idUsuario));
+
+        return ResponseEntity.ok(dto);
     }
 
     /**

@@ -130,23 +130,41 @@ public class ComentarioService implements ComentarioIService {
         return comentarioRepository.save(existente);
     }
 
+    // ALTERADO (RN21) — agora funciona como toggle e impede que o mesmo
+    // usuário curta o mesmo comentário mais de uma vez. O controle é feito
+    // pelo conjunto "usuariosQueCurtiram" dentro do próprio Comentario:
+    // se o id do usuário já está lá, remove (descurtir); senão, adiciona
+    // (curtir). Não foi criada nenhuma entidade nova para isso.
     @Transactional
     @Override
-    public Comentario curtir(Long id) {
+    public Comentario curtir(Long id, Long idUsuario) {
         Comentario comentario = comentarioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Comentário não encontrado com id: " + id));
 
-        //Incrementa o contador de curtidas em 1
-        comentario.setCurtidas(comentario.getCurtidas() + 1);
+        boolean jaCurtiu = comentario.getUsuariosQueCurtiram().contains(idUsuario);
 
-        // NOVO — notifica o autor do comentário que ele recebeu uma curtida (RN14)
-        notificacaoIService.criar(
-                comentario.getUsuario(),
-                "Seu comentário recebeu uma nova curtida!",
-                TipoNotificacao.CURTIDA
-        );
+        if (jaCurtiu) {
+            // Usuário já tinha curtido — descurtir
+            comentario.getUsuariosQueCurtiram().remove(idUsuario);
+            comentario.setCurtidas(Math.max(0, comentario.getCurtidas() - 1));
+            log.info("Usuário {} removeu a curtida do comentário id: {} — total: {}",
+                    idUsuario, id, comentario.getCurtidas());
+        } else {
+            // Usuário ainda não tinha curtido — registra a curtida
+            comentario.getUsuariosQueCurtiram().add(idUsuario);
+            comentario.setCurtidas(comentario.getCurtidas() + 1);
 
-        log.info("Curtindo comentário id: {} — total de curtidas: {}", id, comentario.getCurtidas());
+            // Notifica o autor do comentário, exceto quando ele curte o próprio comentário
+            if (!comentario.getUsuario().getId().equals(idUsuario)) {
+                notificacaoIService.criar(
+                        comentario.getUsuario(),
+                        "Seu comentário recebeu uma nova curtida!",
+                        TipoNotificacao.CURTIDA
+                );
+            }
+            log.info("Usuário {} curtiu o comentário id: {} — total: {}", idUsuario, id, comentario.getCurtidas());
+        }
+
         return comentarioRepository.save(comentario);
     }
 

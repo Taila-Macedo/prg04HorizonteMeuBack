@@ -40,4 +40,9 @@ public class ComentarioGetResponseDto {
 
     @JsonProperty(value = "idPontoTuristico")
     private Long idPontoTuristico;
+
+    // NOVO (RN21) — indica se o usuário informado no PATCH /curtir já
+    // curtiu este comentário. Fica null nas demais rotas (que não recebem idUsuario).
+    @JsonProperty(value = "curtido")
+    private Boolean curtido;
 }
